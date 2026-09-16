@@ -40,7 +40,7 @@ it like a toggle to reveal its detail.
 - **Steps can carry a Notion icon.** The icon is the row's real Notion page icon,
   so it shows in the database and on the page too, not just in the block. The edit
   form's picker offers Notion's own flat icons in all ten of its colours, plus
-  emoji.
+  emoji, and can remove one again.
 - Edits are written straight back to the bound Notion database, because that is
   where the content actually lives.
 - **Reorder without leaving the page.** Move up / move down rewrite the Position
@@ -187,6 +187,11 @@ worker is `notion-blocks` in **Thread & Stack**
   `www.notion.so/icons/<name>_<colour>.svg`, which is exactly what the picker here
   writes. The icons cannot be *loaded* from that URL, though — the sandbox blocks
   it like any other origin — so their markup is bundled and drawn inline.
+- **An icon can be cleared, despite the types.** `icon` is typed optional but not
+  nullable, which reads as "set or replace only". The bridge does no outgoing
+  validation though — it forwards anything that is not `undefined` — and Notion
+  clears the icon on `null`, as its REST API does. So removal works; it just
+  needs a cast.
 - **A row's page icon is write-only from a query.** Data-source snapshots carry
   properties but no icon, so icons have to be fetched per row with `pages.get` and
   cached — and an icon changed elsewhere is not picked up until the block reloads.

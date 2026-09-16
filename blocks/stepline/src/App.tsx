@@ -1,4 +1,8 @@
-import { pages, type NotionPagePropertyInputMap } from "@notionhq/custom-blocks"
+import {
+  pages,
+  type NotionPageIcon,
+  type NotionPagePropertyInputMap,
+} from "@notionhq/custom-blocks"
 import { useDataSource } from "@notionhq/custom-blocks/react"
 import { useCallback, useMemo, useState } from "react"
 import { Step, type StepEdit } from "./Step"
@@ -97,8 +101,9 @@ export function App() {
     }
 
     const hasProperties = Object.keys(properties).length > 0
+    const iconChanged = edit.icon !== undefined
     // Nothing changed — close the form without troubling Notion.
-    if (!hasProperties && !edit.icon) {
+    if (!hasProperties && !iconChanged) {
       setEditingId(null)
       return
     }
@@ -106,10 +111,16 @@ export function App() {
     void write(step.id, async () => {
       const result = await step.row.update({
         ...(hasProperties ? { properties } : {}),
-        ...(edit.icon ? { icon: edit.icon } : {}),
+        // `null` removes the icon. The SDK types it as optional-but-not-nullable,
+        // so this needs a cast — but the bridge forwards whatever is not
+        // `undefined`, and the host clears the icon on `null` the same way
+        // Notion's REST API does.
+        ...(iconChanged
+          ? { icon: edit.icon as NotionPageIcon | undefined }
+          : {}),
       })
       if (result.status === "success") {
-        if (edit.icon) setIcon(step.id, edit.icon)
+        if (iconChanged) setIcon(step.id, edit.icon ?? null)
         setEditingId(null)
       }
       return result

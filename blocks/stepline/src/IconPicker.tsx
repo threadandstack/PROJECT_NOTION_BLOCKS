@@ -15,7 +15,8 @@ import { StepIcon } from "./StepIcon"
 type IconPickerProps = {
   icon: NotionPageIcon | undefined
   disabled?: boolean
-  onPick: (icon: NotionPageIcon) => void
+  /** `null` removes the icon. */
+  onPick: (icon: NotionPageIcon | null) => void
 }
 
 type Tab = "icons" | "emoji"
@@ -34,9 +35,10 @@ type Tab = "icons" | "emoji"
  * The icons are drawn from bundled markup rather than loaded from that URL,
  * because the sandbox blocks the request.
  *
- * There is deliberately no "remove icon" control: the bridge's update message
- * types `icon` as optional but not nullable, so an icon can be set or replaced
- * but never cleared. Clearing one has to be done on the page itself.
+ * Removing an icon sends `null`. The SDK's types say `icon` is optional but not
+ * nullable, which reads as "cannot be cleared" — but the bridge does no outgoing
+ * validation, it only skips the field when it is `undefined`, so a `null` reaches
+ * the host, and the host clears the icon exactly as Notion's REST API does.
  */
 export function IconPicker({ icon, disabled, onPick }: IconPickerProps) {
   const [open, setOpen] = useState(false)
@@ -118,15 +120,29 @@ export function IconPicker({ icon, disabled, onPick }: IconPickerProps) {
             </button>
           </div>
 
-          <input
-            type="search"
-            className="field-input"
-            placeholder={tab === "icons" ? "Search icons" : "Search emoji"}
-            aria-label={tab === "icons" ? "Search icons" : "Search emoji"}
-            value={query}
-            autoFocus
-            onChange={(event) => setQuery(event.target.value)}
-          />
+          <div className="icon-menu-head">
+            <input
+              type="search"
+              className="field-input"
+              placeholder={tab === "icons" ? "Search icons" : "Search emoji"}
+              aria-label={tab === "icons" ? "Search icons" : "Search emoji"}
+              value={query}
+              autoFocus
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            {icon ? (
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => {
+                  setOpen(false)
+                  onPick(null)
+                }}
+              >
+                Remove
+              </button>
+            ) : null}
+          </div>
 
           {tab === "icons" ? (
             <div className="colour-row" role="radiogroup" aria-label="Icon colour">

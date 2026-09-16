@@ -141,7 +141,7 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
-  min-height: var(--spacing-28);
+  min-height: var(--spacing-32);
 }
 
 .step-header:hover {
@@ -155,13 +155,17 @@
 
 .step-icon {
   flex: none;
-  font-size: var(--text-body);
+  font-size: var(--text-title);
   line-height: 1;
 }
 
+/*
+ * Notion draws its flat icons with padding inside a 20x20 canvas, so matching
+ * the emoji's 17px optically means giving the image a slightly larger box.
+ */
 .step-icon-image {
-  width: var(--spacing-16);
-  height: var(--spacing-16);
+  width: var(--spacing-20);
+  height: var(--spacing-20);
   object-fit: contain;
   border-radius: var(--radius-2);
 }
@@ -172,8 +176,13 @@
   gap: var(--spacing-6);
 }
 
+/*
+ * A step title is a heading for the text under it, so it takes the title step of
+ * the scale (17px) rather than body (14px), which the detail copy keeps.
+ */
 .step-title {
-  font-size: var(--text-body);
+  font-size: var(--text-title);
+  line-height: var(--text-title--line-height);
   font-weight: var(--font-weight-medium);
   color: var(--content-primary);
   overflow: hidden;
@@ -575,10 +584,25 @@
   background: var(--bg-hover);
 }
 
+/*
+ * --bg-control-selected is a dark fill in both themes, so its label has to be
+ * --content-on-control. Pairing it with --content-primary made the active tab's
+ * text invisible on light backgrounds.
+ */
 .icon-tab.is-active {
   background: var(--bg-control-selected);
-  color: var(--content-primary);
+  color: var(--content-on-control);
   font-weight: var(--font-weight-medium);
+}
+
+.icon-menu-head {
+  display: flex;
+  gap: var(--spacing-6);
+}
+
+.icon-menu-head .field-input {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .colour-row {

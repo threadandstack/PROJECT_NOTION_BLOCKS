@@ -8,8 +8,10 @@ import { formatDate, type Step as StepModel } from "./steps"
 export type StepEdit = {
   title: string
   detail: string
-  /** Only set when the icon was changed — the bridge cannot clear one. */
-  icon?: NotionPageIcon
+  /**
+   * Undefined leaves the icon alone; an icon replaces it; `null` removes it.
+   */
+  icon?: NotionPageIcon | null
   /** Only set when the status was changed. */
   status?: NotionPropertyOption
 }
@@ -222,7 +224,7 @@ function StepForm({
     onSave({
       title: title.trim(),
       detail: detail.trim(),
-      ...(iconChanged && draftIcon ? { icon: draftIcon } : {}),
+      ...(iconChanged ? { icon: draftIcon } : {}),
       ...(status ? { status } : {}),
     })
   }
