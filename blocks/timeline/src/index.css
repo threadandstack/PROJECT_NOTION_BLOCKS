@@ -556,6 +556,15 @@
 .notion-pink { background: #c14c8a; }
 .notion-red { background: #d44c47; }
 
+.icon-fallback {
+  font-size: var(--text-body-xs);
+  color: var(--content-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 var(--spacing-2);
+}
+
 .icon-option-image {
   width: var(--spacing-20);
   height: var(--spacing-20);

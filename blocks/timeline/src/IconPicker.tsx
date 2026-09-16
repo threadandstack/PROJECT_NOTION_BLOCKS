@@ -1,6 +1,7 @@
 import type { NotionPageIcon } from "@notionhq/custom-blocks"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { EMOJI_GROUPS, searchEmoji } from "./emoji"
+import { NotionIconImage } from "./NotionIconImage"
 import {
   NOTION_ICON_COLOURS,
   NOTION_ICONS,
@@ -156,11 +157,10 @@ export function IconPicker({ icon, disabled, onPick }: IconPickerProps) {
                       aria-label={entry.name.replace(/-/g, " ")}
                       onClick={() => chooseIcon(entry.name)}
                     >
-                      <img
+                      <NotionIconImage
                         className="icon-option-image"
-                        src={notionIconUrl(entry.name, colour)}
-                        alt=""
-                        loading="lazy"
+                        url={notionIconUrl(entry.name, colour)}
+                        name={entry.name}
                       />
                     </button>
                   ))}

@@ -24,5 +24,16 @@ export function StepIcon({ icon }: { icon: NotionPageIcon }) {
 
   if (!url) return null
 
-  return <img className="step-icon step-icon-image" src={url} alt="" />
+  // A step icon that cannot load is dropped rather than shown broken — the
+  // title still identifies the step perfectly well without it.
+  return (
+    <img
+      className="step-icon step-icon-image"
+      src={url}
+      alt=""
+      onError={(event) => {
+        event.currentTarget.style.display = "none"
+      }}
+    />
+  )
 }

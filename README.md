@@ -30,8 +30,9 @@ it like a toggle; the panel underneath is where the step is edited.
   written until Save, and Cancel leaves the step untouched. A newly added step
   opens straight into its form, since it has nothing to read yet.
 - **Steps can carry a Notion icon.** The icon is the row's real Notion page icon,
-  so it shows in the database and on the page too, not just in the block. Pick one
-  from the searchable emoji set in the edit form.
+  so it shows in the database and on the page too, not just in the block. The edit
+  form's picker offers Notion's own flat icons in all ten of its colours, plus
+  emoji.
 - **Status changes without opening the form** — the pill in an expanded step is
   the picker, the way it behaves in Notion.
 - Edits are written straight back to the bound Notion database, because that is
@@ -165,6 +166,13 @@ worker is `notion-blocks` in **Thread & Stack**
   different things. Handle write failures even after the block has loaded.
 - **The bundle is public** to anyone who can view the block. Secrets belong in the
   worker, never the frontend.
+- **Notion's native icon picker cannot be opened from a block.** The bridge has
+  messages for data, pages, users and layout only — nothing for presenting host
+  UI — so a block has to draw its own picker. What it *writes* is the real thing:
+  Notion stores a built-in icon as an `external` icon at
+  `www.notion.so/icons/<name>_<colour>.svg`, which is exactly what the picker here
+  writes. Those images load from Notion's host rather than the bundle, so they
+  degrade to the icon's name if the sandbox ever refuses that origin.
 - **A row's page icon is write-only from a query.** Data-source snapshots carry
   properties but no icon, so icons have to be fetched per row with `pages.get` and
   cached — and an icon changed elsewhere is not picked up until the block reloads.
@@ -189,6 +197,8 @@ blocks/timeline/
   src/IconPicker.tsx      emoji picker for a step's page icon
   src/StepIcon.tsx        renders whichever icon variant a step carries
   src/emoji.ts            the bundled emoji set and its search
+  src/notionIcons.ts      Notion's flat icon names, colours and URL builder
+  src/NotionIconImage.tsx a Notion icon that falls back to its name if blocked
   src/useStepIcons.ts     fetches and caches each row's page icon
   src/steps.ts            ordering, status→phase mapping, date parsing
   src/index.css           Notion design tokens
