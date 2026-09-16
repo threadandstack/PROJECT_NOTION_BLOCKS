@@ -25,6 +25,10 @@ it like a toggle to reveal its detail.
   rail reads as progress at a glance.
 - **Status drives the bullet.** Complete steps fill solid, in-progress steps get
   a highlighted ring, not-started steps stay outlined.
+- **Status drives the colour.** A step's title and its status label both take the
+  colour the workspace gave that option, so the stepline reads in the same
+  colours as the database behind it. Options with no hue — `default` and `gray`,
+  which an untouched "Not started" usually is — keep a plain black title.
 - **Reading it shows no controls at all.** An open step is its detail text on the
   page — no card, no buttons. "Edit stepline" appears on hover (and on keyboard
   focus) and is the only chrome at rest.
