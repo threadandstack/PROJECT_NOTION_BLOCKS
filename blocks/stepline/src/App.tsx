@@ -1,8 +1,4 @@
-import {
-  pages,
-  type NotionPageIcon,
-  type NotionPagePropertyInputMap,
-} from "@notionhq/custom-blocks"
+import { pages, type NotionPagePropertyInputMap } from "@notionhq/custom-blocks"
 import { useDataSource } from "@notionhq/custom-blocks/react"
 import { useCallback, useMemo, useState } from "react"
 import { Step, type StepEdit } from "./Step"
@@ -15,6 +11,16 @@ const MAX_ROWS = 999
 
 /** A write result from either the per-row helper or the `pages` API. */
 type WriteResult = { status: "success" } | { status: "error"; error: { message: string } }
+
+/**
+ * How long to wait for the host to answer a write before giving up on it.
+ *
+ * The bridge resolves a write when the host sends its result back, and a message
+ * the host rejects as malformed is simply never answered — so without a deadline
+ * one bad write leaves the step disabled for good, with no error to explain it.
+ * Ten seconds is far longer than a normal round trip.
+ */
+const WRITE_TIMEOUT_MS = 10_000
 
 export function App() {
   const [limit, setLimit] = useState(PAGE_SIZE)
@@ -50,14 +56,31 @@ export function App() {
     async (id: string, run: () => Promise<WriteResult>) => {
       setBusyId(id)
       setWriteError(null)
+
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const timeout = new Promise<WriteResult>((resolve) => {
+        timer = setTimeout(
+          () =>
+            resolve({
+              status: "error",
+              error: {
+                message:
+                  "Notion didn't respond to that change. It may not have been saved — reopen the step to check.",
+              },
+            }),
+          WRITE_TIMEOUT_MS
+        )
+      })
+
       try {
-        const result = await run()
+        const result = await Promise.race([run(), timeout])
         if (result.status === "error") setWriteError(result.error.message)
         return result.status === "success"
       } catch (cause) {
         setWriteError(cause instanceof Error ? cause.message : String(cause))
         return false
       } finally {
+        clearTimeout(timer)
         setBusyId(null)
       }
     },
@@ -111,16 +134,10 @@ export function App() {
     void write(step.id, async () => {
       const result = await step.row.update({
         ...(hasProperties ? { properties } : {}),
-        // `null` removes the icon. The SDK types it as optional-but-not-nullable,
-        // so this needs a cast — but the bridge forwards whatever is not
-        // `undefined`, and the host clears the icon on `null` the same way
-        // Notion's REST API does.
-        ...(iconChanged
-          ? { icon: edit.icon as NotionPageIcon | undefined }
-          : {}),
+        ...(iconChanged ? { icon: edit.icon } : {}),
       })
       if (result.status === "success") {
-        if (iconChanged) setIcon(step.id, edit.icon ?? null)
+        if (iconChanged && edit.icon) setIcon(step.id, edit.icon)
         setEditingId(null)
       }
       return result

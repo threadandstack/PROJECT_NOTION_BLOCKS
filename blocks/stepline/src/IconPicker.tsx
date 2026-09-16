@@ -15,8 +15,7 @@ import { StepIcon } from "./StepIcon"
 type IconPickerProps = {
   icon: NotionPageIcon | undefined
   disabled?: boolean
-  /** `null` removes the icon. */
-  onPick: (icon: NotionPageIcon | null) => void
+  onPick: (icon: NotionPageIcon) => void
 }
 
 type Tab = "icons" | "emoji"
@@ -35,10 +34,12 @@ type Tab = "icons" | "emoji"
  * The icons are drawn from bundled markup rather than loaded from that URL,
  * because the sandbox blocks the request.
  *
- * Removing an icon sends `null`. The SDK's types say `icon` is optional but not
- * nullable, which reads as "cannot be cleared" — but the bridge does no outgoing
- * validation, it only skips the field when it is `undefined`, so a `null` reaches
- * the host, and the host clears the icon exactly as Notion's REST API does.
+ * There is no "remove icon" control, and it is not an oversight. Notion's REST
+ * API clears an icon on `null`, and the sandbox bridge forwards anything that is
+ * not `undefined` — but the bridge's own message schema types `icon` as optional
+ * and NOT nullable, so the host rejects the message and never answers it. The
+ * write then hangs rather than failing, which wedges the step. Clearing an icon
+ * has to be done on the row in Notion.
  */
 export function IconPicker({ icon, disabled, onPick }: IconPickerProps) {
   const [open, setOpen] = useState(false)
@@ -130,18 +131,6 @@ export function IconPicker({ icon, disabled, onPick }: IconPickerProps) {
               autoFocus
               onChange={(event) => setQuery(event.target.value)}
             />
-            {icon ? (
-              <button
-                type="button"
-                className="ghost-button"
-                onClick={() => {
-                  setOpen(false)
-                  onPick(null)
-                }}
-              >
-                Remove
-              </button>
-            ) : null}
           </div>
 
           {tab === "icons" ? (

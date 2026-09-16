@@ -347,8 +347,13 @@
   border-color: transparent;
 }
 
+/*
+ * A disabled field keeps its own text colour and dims instead, for the same
+ * reason: --content-disabled is near-invisible on light backgrounds, which made
+ * a saving step look as though its title and detail had been wiped.
+ */
 .field-input:disabled {
-  color: var(--content-disabled);
+  opacity: 0.6;
 }
 
 .field-textarea {
@@ -457,9 +462,18 @@
   background: var(--bg-control-hover);
 }
 
+/*
+ * Disabled controls dim rather than recolour. In light mode --content-disabled
+ * and --bg-control are the same value (--gray-40), so disabled label on a control
+ * is invisible — the button reads as an empty grey box. Fading the whole control
+ * keeps the label legible and works the same in both themes.
+ */
 .ghost-button:disabled,
-.add-button:disabled {
-  color: var(--content-disabled);
+.add-button:disabled,
+.primary-button:disabled,
+.icon-trigger:disabled,
+.status-trigger:disabled {
+  opacity: 0.45;
   cursor: default;
 }
 
@@ -484,10 +498,6 @@
   background: var(--red-60);
 }
 
-.ghost-button.danger:disabled::before {
-  background: var(--content-disabled);
-}
-
 .ghost-button.danger.is-confirming:not(:disabled) {
   font-weight: var(--font-weight-semibold);
   background: var(--bg-control-hover);
@@ -510,10 +520,8 @@
 }
 
 .primary-button:disabled {
-  background: var(--bg-control);
-  color: var(--content-disabled);
-  border-color: var(--border-control);
-  cursor: default;
+  background: var(--bg-interactive-strong);
+  color: var(--content-on-interactive-strong);
 }
 
 /* ── Icon picker ──────────────────────────────────────────────────────── */

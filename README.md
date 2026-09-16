@@ -40,7 +40,7 @@ it like a toggle to reveal its detail.
 - **Steps can carry a Notion icon.** The icon is the row's real Notion page icon,
   so it shows in the database and on the page too, not just in the block. The edit
   form's picker offers Notion's own flat icons in all ten of its colours, plus
-  emoji, and can remove one again.
+  emoji. An icon can be changed but not removed — see the constraints below.
 - Edits are written straight back to the bound Notion database, because that is
   where the content actually lives.
 - **Reorder without leaving the page.** Move up / move down rewrite the Position
@@ -187,11 +187,19 @@ worker is `notion-blocks` in **Thread & Stack**
   `www.notion.so/icons/<name>_<colour>.svg`, which is exactly what the picker here
   writes. The icons cannot be *loaded* from that URL, though — the sandbox blocks
   it like any other origin — so their markup is bundled and drawn inline.
-- **An icon can be cleared, despite the types.** `icon` is typed optional but not
-  nullable, which reads as "set or replace only". The bridge does no outgoing
-  validation though — it forwards anything that is not `undefined` — and Notion
-  clears the icon on `null`, as its REST API does. So removal works; it just
-  needs a cast.
+- **An icon can be set or replaced, but not cleared.** Notion's REST API clears
+  an icon on `null` and the bridge forwards anything that is not `undefined`, so
+  this looks like it should work — but the bridge's own message schema types
+  `icon` as optional and NOT nullable, and the host drops the message rather than
+  answering it. The write then hangs instead of failing. Clearing an icon has to
+  be done on the row in Notion. (Testing this against the REST API proves nothing:
+  the bridge is a different layer with its own schema.)
+- **A rejected message is never answered**, so every bridge call needs a deadline.
+  Without one, a single malformed write leaves the UI stuck mid-write with no
+  error to explain it.
+- **`--content-disabled` equals `--bg-control` in light mode** (both `--gray-40`),
+  so disabled text on a control is invisible. Dim disabled controls with
+  `opacity` instead of recolouring them. A test guards this.
 - **A row's page icon is write-only from a query.** Data-source snapshots carry
   properties but no icon, so icons have to be fetched per row with `pages.get` and
   cached — and an icon changed elsewhere is not picked up until the block reloads.

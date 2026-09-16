@@ -291,3 +291,26 @@ test("every status tone has both a light and a dark declaration", async () => {
     "completed titles are being greyed out"
   )
 })
+
+test("disabled controls stay legible", async () => {
+  const css = await readFile(
+    new URL("../blocks/stepline/src/index.css", import.meta.url),
+    "utf8"
+  )
+  const rules = css.replace(/\/\*[\s\S]*?\*\//g, "")
+
+  // In light mode --content-disabled and --bg-control are both --gray-40, so
+  // using the former as text on the latter renders an empty grey box. Dim the
+  // control instead.
+  assert.doesNotMatch(
+    rules,
+    /color:\s*var\(--content-disabled\)/,
+    "--content-disabled is invisible on a control background; use opacity"
+  )
+
+  assert.match(
+    rules,
+    /\.ghost-button:disabled[\s\S]{0,200}opacity/,
+    "disabled buttons should dim"
+  )
+})
