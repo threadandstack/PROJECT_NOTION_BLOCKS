@@ -125,6 +125,25 @@
   outline-offset: 1px;
 }
 
+.step-icon {
+  flex: none;
+  font-size: var(--text-body);
+  line-height: 1;
+}
+
+.step-icon-image {
+  width: var(--spacing-16);
+  height: var(--spacing-16);
+  object-fit: contain;
+  border-radius: var(--radius-2);
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-6);
+}
+
 .step-title {
   font-size: var(--text-body);
   font-weight: var(--font-weight-medium);
@@ -133,7 +152,26 @@
   white-space: nowrap;
 }
 
-.step-complete .step-title {
+.step-complete .step-icon {
+  flex: none;
+  font-size: var(--text-body);
+  line-height: 1;
+}
+
+.step-icon-image {
+  width: var(--spacing-16);
+  height: var(--spacing-16);
+  object-fit: contain;
+  border-radius: var(--radius-2);
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-6);
+}
+
+.step-title {
   color: var(--content-secondary);
 }
 
@@ -182,9 +220,26 @@
 
 .detail-read {
   margin: 0;
-  font-size: var(--text-body-sm);
-  color: var(--content-secondary);
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
+  color: var(--content-primary);
   white-space: pre-wrap;
+}
+
+.detail-empty {
+  margin: 0;
+  font-size: var(--text-body-sm);
+  color: var(--content-tertiary);
+}
+
+.step-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+}
+
+.step-form {
+  display: contents;
 }
 
 .field {
@@ -366,6 +421,126 @@
 .ghost-button.danger.is-confirming:not(:disabled) {
   font-weight: var(--font-weight-semibold);
   background: var(--bg-control-hover);
+}
+
+.primary-button {
+  font: inherit;
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-medium);
+  border: 1px solid transparent;
+  border-radius: var(--radius-6);
+  padding: var(--spacing-4) var(--spacing-12);
+  cursor: pointer;
+  background: var(--bg-interactive-strong);
+  color: var(--content-on-interactive-strong);
+}
+
+.primary-button:hover:not(:disabled) {
+  background: var(--bg-interactive-strong-hover);
+}
+
+.primary-button:disabled {
+  background: var(--bg-control);
+  color: var(--content-disabled);
+  border-color: var(--border-control);
+  cursor: default;
+}
+
+/* ── Icon picker ──────────────────────────────────────────────────────── */
+
+.icon-picker {
+  position: relative;
+  flex: none;
+}
+
+.icon-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--spacing-32);
+  height: var(--spacing-32);
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  background: var(--bg-control);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-6);
+  color: var(--content-tertiary);
+}
+
+.icon-trigger:hover:not(:disabled) {
+  background: var(--bg-control-hover);
+}
+
+.icon-empty {
+  font-size: var(--text-body);
+  line-height: 1;
+}
+
+.icon-menu {
+  position: absolute;
+  z-index: 3;
+  top: calc(100% + var(--spacing-4));
+  left: 0;
+  width: var(--spacing-96);
+  min-width: 280px;
+  padding: var(--spacing-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-8);
+  box-shadow: var(--shadow-md);
+}
+
+.icon-menu-head {
+  display: flex;
+  gap: var(--spacing-6);
+}
+
+.icon-scroll {
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+}
+
+.icon-group-name {
+  margin: 0 0 var(--spacing-4);
+  font-size: var(--text-body-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--content-tertiary);
+}
+
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--spacing-32), 1fr));
+  gap: var(--spacing-2);
+}
+
+.icon-option {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-body);
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-4);
+}
+
+.icon-option:hover {
+  background: var(--bg-hover);
+}
+
+.icon-option:focus-visible {
+  outline: 2px solid var(--border-interactive-primary);
+  outline-offset: -2px;
 }
 
 .timeline-footer {

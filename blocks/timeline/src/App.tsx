@@ -1,8 +1,13 @@
-import { pages, type NotionPropertyOption } from "@notionhq/custom-blocks"
+import {
+  pages,
+  type NotionPagePropertyInputMap,
+  type NotionPropertyOption,
+} from "@notionhq/custom-blocks"
 import { useDataSource } from "@notionhq/custom-blocks/react"
 import { useCallback, useMemo, useState } from "react"
-import { Step } from "./Step"
+import { Step, type StepEdit } from "./Step"
 import { nextPosition, statusOptions, toSteps, type Step as StepModel } from "./steps"
+import { useStepIcons } from "./useStepIcons"
 
 const DATA_SOURCE_KEY = "steps"
 const PAGE_SIZE = 25
@@ -14,6 +19,7 @@ type WriteResult = { status: "success" } | { status: "error"; error: { message: 
 export function App() {
   const [limit, setLimit] = useState(PAGE_SIZE)
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [writeError, setWriteError] = useState<string | null>(null)
 
@@ -29,6 +35,9 @@ export function App() {
     [items, propertySchemasByKey.status]
   )
 
+  const ids = useMemo(() => steps.map((step) => step.id), [steps])
+  const { icons, setIcon } = useStepIcons(ids)
+
   /**
    * Run one write, keeping the affected step disabled until it settles and
    * surfacing any failure. Reads refresh through the live subscription, so
@@ -41,8 +50,10 @@ export function App() {
       try {
         const result = await run()
         if (result.status === "error") setWriteError(result.error.message)
+        return result.status === "success"
       } catch (cause) {
         setWriteError(cause instanceof Error ? cause.message : String(cause))
+        return false
       } finally {
         setBusyId(null)
       }
@@ -50,35 +61,57 @@ export function App() {
     []
   )
 
-  const toggle = useCallback((id: string) => {
-    setExpanded((current) => {
-      const next = new Set(current)
-      if (!next.delete(id)) next.add(id)
-      return next
+  const toggle = useCallback(
+    (id: string) => {
+      setExpanded((current) => {
+        const next = new Set(current)
+        if (!next.delete(id)) next.add(id)
+        return next
+      })
+      // Collapsing a step being edited drops the edit rather than leaving an
+      // open form hidden behind a closed panel.
+      if (editingId === id) setEditingId(null)
+    },
+    [editingId]
+  )
+
+  /** Save title, detail and icon together, so one edit is one write. */
+  function save(step: StepModel, edit: StepEdit) {
+    const properties: NotionPagePropertyInputMap = {}
+
+    if (edit.title !== step.title.trim()) {
+      properties.title = {
+        type: "title",
+        title: [{ type: "text", text: { content: edit.title } }],
+      }
+    }
+    if (edit.detail !== step.detail.trim()) {
+      properties.detail = {
+        type: "rich_text",
+        rich_text: edit.detail
+          ? [{ type: "text", text: { content: edit.detail } }]
+          : [],
+      }
+    }
+
+    const hasProperties = Object.keys(properties).length > 0
+    // Nothing changed — close the form without troubling Notion.
+    if (!hasProperties && !edit.icon) {
+      setEditingId(null)
+      return
+    }
+
+    void write(step.id, async () => {
+      const result = await step.row.update({
+        ...(hasProperties ? { properties } : {}),
+        ...(edit.icon ? { icon: edit.icon } : {}),
+      })
+      if (result.status === "success") {
+        if (edit.icon) setIcon(step.id, edit.icon)
+        setEditingId(null)
+      }
+      return result
     })
-  }, [])
-
-  function editTitle(step: StepModel, value: string) {
-    void write(step.id, () =>
-      step.row.update({
-        properties: {
-          title: { type: "title", title: [{ type: "text", text: { content: value } }] },
-        },
-      })
-    )
-  }
-
-  function editDetail(step: StepModel, value: string) {
-    void write(step.id, () =>
-      step.row.update({
-        properties: {
-          detail: {
-            type: "rich_text",
-            rich_text: value ? [{ type: "text", text: { content: value } }] : [],
-          },
-        },
-      })
-    )
   }
 
   function setStatus(step: StepModel, option: NotionPropertyOption) {
@@ -122,11 +155,13 @@ export function App() {
           next.delete(step.id)
           return next
         })
+        if (editingId === step.id) setEditingId(null)
       }
       return result
     })
   }
 
+  /** A new step has nothing to read, so it opens straight into its edit form. */
   function addStep() {
     void write("new", async () => {
       const result = await pages.create({
@@ -141,6 +176,7 @@ export function App() {
       })
       if (result.status === "success") {
         setExpanded((current) => new Set(current).add(result.page.id))
+        setEditingId(result.page.id)
       }
       return result
     })
@@ -148,7 +184,7 @@ export function App() {
 
   if (error) {
     return (
-      <div className="notice" role="alert">
+      <div className="notice notice-error" role="alert">
         Couldn't load the timeline: {error.message}
       </div>
     )
@@ -182,15 +218,17 @@ export function App() {
               step={step}
               index={index + 1}
               isLast={index === steps.length - 1}
+              icon={icons[step.id]}
               canMoveUp={index > 0}
               canMoveDown={index < steps.length - 1}
               statusOptions={options}
               expanded={expanded.has(step.id)}
+              editing={editingId === step.id}
               busy={busyId === step.id}
-              canEdit
               onToggle={() => toggle(step.id)}
-              onEditTitle={(value) => editTitle(step, value)}
-              onEditDetail={(value) => editDetail(step, value)}
+              onStartEditing={() => setEditingId(step.id)}
+              onStopEditing={() => setEditingId(null)}
+              onSave={(edit) => save(step, edit)}
               onSetStatus={(option) => setStatus(step, option)}
               onMove={(direction) => move(index, direction)}
               onRemove={() => remove(step)}

@@ -1,22 +1,32 @@
-import type { NotionPropertyOption } from "@notionhq/custom-blocks"
+import type { NotionPageIcon, NotionPropertyOption } from "@notionhq/custom-blocks"
 import { useEffect, useId, useState } from "react"
-import { EditableText } from "./EditableText"
+import { IconPicker } from "./IconPicker"
 import { StatusPicker } from "./StatusPicker"
+import { StepIcon } from "./StepIcon"
 import { formatDate, type Step as StepModel } from "./steps"
+
+export type StepEdit = {
+  title: string
+  detail: string
+  /** Only set when the icon was changed — the bridge cannot clear one. */
+  icon?: NotionPageIcon
+}
 
 type StepProps = {
   step: StepModel
   index: number
   isLast: boolean
+  icon: NotionPageIcon | null | undefined
   canMoveUp: boolean
   canMoveDown: boolean
   statusOptions: NotionPropertyOption[]
   expanded: boolean
+  editing: boolean
   busy: boolean
-  canEdit: boolean
   onToggle: () => void
-  onEditTitle: (value: string) => void
-  onEditDetail: (value: string) => void
+  onStartEditing: () => void
+  onStopEditing: () => void
+  onSave: (edit: StepEdit) => void
   onSetStatus: (option: NotionPropertyOption) => void
   onMove: (direction: -1 | 1) => void
   onRemove: () => void
@@ -26,15 +36,17 @@ export function Step({
   step,
   index,
   isLast,
+  icon,
   canMoveUp,
   canMoveDown,
   statusOptions,
   expanded,
+  editing,
   busy,
-  canEdit,
   onToggle,
-  onEditTitle,
-  onEditDetail,
+  onStartEditing,
+  onStopEditing,
+  onSave,
   onSetStatus,
   onMove,
   onRemove,
@@ -42,8 +54,6 @@ export function Step({
   const panelId = useId()
   const [confirmingRemove, setConfirmingRemove] = useState(false)
 
-  // Collapsing the step cancels a pending delete, so a half-confirmed action
-  // never sits waiting behind a closed panel.
   useEffect(() => {
     if (!expanded) setConfirmingRemove(false)
   }, [expanded])
@@ -68,6 +78,7 @@ export function Step({
           aria-controls={panelId}
           onClick={onToggle}
         >
+          {icon ? <StepIcon icon={icon} /> : null}
           <span className="step-title">{title}</span>
           {step.status ? (
             <span className="status-tag">{step.status}</span>
@@ -77,33 +88,23 @@ export function Step({
         </button>
 
         <div className="step-panel" id={panelId} hidden={!expanded}>
-          {canEdit ? (
+          {editing ? (
+            <StepForm
+              step={step}
+              icon={icon ?? null}
+              busy={busy}
+              onCancel={onStopEditing}
+              onSave={onSave}
+            />
+          ) : (
             <>
-              <label className="field">
-                <span className="field-label">Title</span>
-                <EditableText
-                  label="Step title"
-                  value={step.title}
-                  placeholder="Name this step"
-                  disabled={busy}
-                  onCommit={onEditTitle}
-                />
-              </label>
+              {step.detail ? (
+                <p className="detail-read">{step.detail}</p>
+              ) : (
+                <p className="detail-empty">No detail for this step yet.</p>
+              )}
 
-              <label className="field">
-                <span className="field-label">Detail</span>
-                <EditableText
-                  label="Step detail"
-                  value={step.detail}
-                  placeholder="What happens at this step?"
-                  multiline
-                  disabled={busy}
-                  onCommit={onEditDetail}
-                />
-              </label>
-
-              <div className="field">
-                <span className="field-label">Status</span>
+              <div className="step-meta">
                 <StatusPicker
                   options={statusOptions}
                   value={step.status}
@@ -113,6 +114,14 @@ export function Step({
               </div>
 
               <div className="step-actions">
+                <button
+                  type="button"
+                  className="ghost-button"
+                  disabled={busy}
+                  onClick={onStartEditing}
+                >
+                  Edit
+                </button>
                 <button
                   type="button"
                   className="ghost-button"
@@ -168,14 +177,97 @@ export function Step({
                 </p>
               ) : null}
             </>
-          ) : (
-            <p className="detail-read">
-              {step.detail || "No detail for this step yet."}
-            </p>
           )}
         </div>
       </div>
     </li>
+  )
+}
+
+/**
+ * The edit form. Drafts are local until Save, so nothing is written to Notion
+ * until it is asked for, and Cancel leaves the step exactly as it was.
+ */
+function StepForm({
+  step,
+  icon,
+  busy,
+  onCancel,
+  onSave,
+}: {
+  step: StepModel
+  icon: NotionPageIcon | null
+  busy: boolean
+  onCancel: () => void
+  onSave: (edit: StepEdit) => void
+}) {
+  const [title, setTitle] = useState(step.title)
+  const [detail, setDetail] = useState(step.detail)
+  const [draftIcon, setDraftIcon] = useState<NotionPageIcon | null>(icon)
+  const [iconChanged, setIconChanged] = useState(false)
+
+  function submit(event: React.FormEvent) {
+    event.preventDefault()
+    onSave({
+      title: title.trim(),
+      detail: detail.trim(),
+      ...(iconChanged && draftIcon ? { icon: draftIcon } : {}),
+    })
+  }
+
+  return (
+    <form className="step-form" onSubmit={submit}>
+      <div className="field">
+        <span className="field-label">Icon and title</span>
+        <div className="title-row">
+          <IconPicker
+            icon={draftIcon ?? undefined}
+            disabled={busy}
+            onPick={(next) => {
+              setDraftIcon(next)
+              setIconChanged(true)
+            }}
+          />
+          <input
+            type="text"
+            className="field-input"
+            aria-label="Step title"
+            placeholder="Name this step"
+            value={title}
+            disabled={busy}
+            autoFocus
+            onChange={(event) => setTitle(event.target.value)}
+          />
+        </div>
+      </div>
+
+      <label className="field">
+        <span className="field-label">Detail</span>
+        <textarea
+          className="field-input field-textarea"
+          aria-label="Step detail"
+          placeholder="What happens at this step?"
+          rows={3}
+          value={detail}
+          disabled={busy}
+          onChange={(event) => setDetail(event.target.value)}
+        />
+      </label>
+
+      <div className="step-actions">
+        <button type="submit" className="primary-button" disabled={busy}>
+          {busy ? "Saving…" : "Save"}
+        </button>
+        <button
+          type="button"
+          className="ghost-button"
+          disabled={busy}
+          onClick={onCancel}
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
   )
 }
 

@@ -25,9 +25,17 @@ it like a toggle; the panel underneath is where the step is edited.
   rail reads as progress at a glance.
 - **Status drives the bullet.** Complete steps fill solid, in-progress steps get
   a highlighted ring, not-started steps stay outlined.
-- **Everything is editable in place.** Title, detail and status are written
-  straight back to the bound Notion database — edits show up in the database view
-  too, because that's where the content actually lives.
+- **Reads as content, edits on request.** An expanded step shows its detail as
+  rendered text. "Edit" swaps in a form for the title, detail and icon; nothing is
+  written until Save, and Cancel leaves the step untouched. A newly added step
+  opens straight into its form, since it has nothing to read yet.
+- **Steps can carry a Notion icon.** The icon is the row's real Notion page icon,
+  so it shows in the database and on the page too, not just in the block. Pick one
+  from the searchable emoji set in the edit form.
+- **Status changes without opening the form** — the pill in an expanded step is
+  the picker, the way it behaves in Notion.
+- Edits are written straight back to the bound Notion database, because that is
+  where the content actually lives.
 - **Reorder without leaving the page.** Move up / move down rewrite the Position
   property; adding a step appends it to the end.
 - **Removing is a two-step confirm** and archives the row rather than deleting
@@ -46,6 +54,9 @@ name, so a database using these names binds with no manual mapping:
 | Status | `status` | Drives the bullet's appearance |
 | Position | `number` | Sort order — the numbering follows it |
 | Date | `date` | Optional date shown beside the title (display only) |
+
+A step's icon is not a property — it is the Notion page icon on the row itself, so
+there is nothing to map for it.
 
 **Status must be a Status property, not a Select.** The block reads the
 property's own groups (To-do / In progress / Complete) rather than matching option
@@ -89,9 +100,12 @@ and sizing are all faithful, and failed writes surface correctly. But it rejects
 page writes (`page not found`) and doesn't model status options, so these can only
 be verified against a real workspace:
 
-- editing a title, detail or status
-- moving a step, adding a step, removing a step
+- saving an edit (title, detail or icon)
+- changing a status, moving a step, adding a step, removing a step
 - the status picker's menu (it shows a "bind a Status property" note locally)
+
+Icons are fetched with `pages.get`, which the shell also does not serve, so steps
+render without icons locally even when the real rows have them.
 
 Pull a real database into the shell instead if you want realistic rows:
 
@@ -151,6 +165,11 @@ worker is `notion-blocks` in **Thread & Stack**
   different things. Handle write failures even after the block has loaded.
 - **The bundle is public** to anyone who can view the block. Secrets belong in the
   worker, never the frontend.
+- **A row's page icon is write-only from a query.** Data-source snapshots carry
+  properties but no icon, so icons have to be fetched per row with `pages.get` and
+  cached — and an icon changed elsewhere is not picked up until the block reloads.
+  `icon` is also optional-but-not-nullable on the update message, so a block can
+  set or replace an icon but never clear one.
 - **Colour tokens are not all theme-aware.** The semantic tokens
   (`--content-*`, `--bg-*`, `--border-*`) flip between light and dark; the raw
   palette scale (`--red-60`, `--blue-60`…) does not — only the contrast modes
@@ -165,9 +184,12 @@ blocks/timeline/
   vite.config.ts          frontend build
   src/index.tsx           entry — NotionCustomBlock + NotionTokenScope wrappers
   src/App.tsx             query, write handlers, add / move / remove
-  src/Step.tsx            one step: bullet, header toggle, edit panel
+  src/Step.tsx            one step: bullet, header toggle, read view, edit form
   src/StatusPicker.tsx    status menu
-  src/EditableText.tsx    text field that commits on blur
+  src/IconPicker.tsx      emoji picker for a step's page icon
+  src/StepIcon.tsx        renders whichever icon variant a step carries
+  src/emoji.ts            the bundled emoji set and its search
+  src/useStepIcons.ts     fetches and caches each row's page icon
   src/steps.ts            ordering, status→phase mapping, date parsing
   src/index.css           Notion design tokens
 data/steps.json           sample rows for the dev shell

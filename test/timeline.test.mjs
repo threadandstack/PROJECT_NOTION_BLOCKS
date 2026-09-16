@@ -117,3 +117,22 @@ test("appends new steps after the highest position", () => {
     8
   )
 })
+
+test("icon search matches keywords and group names", async () => {
+  const { searchEmoji, EMOJI_GROUPS } = await import("../blocks/timeline/src/emoji.ts")
+
+  assert.equal(searchEmoji(""), null, "an empty query shows the grouped list")
+  assert.equal(searchEmoji("   "), null)
+
+  const build = searchEmoji("build")
+  assert.ok(build.length > 0)
+  assert.ok(build.every((entry) => entry.keywords.includes("build")))
+
+  // A group name is searchable even when no keyword carries it.
+  assert.ok(searchEmoji("progress").length > 0)
+  assert.equal(searchEmoji("ZZZZ").length, 0)
+
+  // Every emoji is unique, so React keys and the picker grid stay stable.
+  const chars = EMOJI_GROUPS.flatMap((group) => group.emoji.map((e) => e.char))
+  assert.equal(new Set(chars).size, chars.length, "duplicate emoji in the set")
+})
