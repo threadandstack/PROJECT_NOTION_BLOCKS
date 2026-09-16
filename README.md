@@ -117,8 +117,15 @@ ntn workers customblocks make --key timeline --target <page-id-or-url>
 Map the five property slots when prompted. To let other workspace members insert
 the block, share the worker with **Can connect** access.
 
-`workers.json` (gitignored) pins the worker to a workspace and worker ID. The
-Thread & Stack workspace is `bbd9bf1d-df73-40f6-991f-470984d40eaa`.
+`workers.json` (gitignored) pins the worker to a workspace and worker ID. This
+worker is `notion-blocks` in **Thread & Stack**
+(`bbd9bf1d-df73-40f6-991f-470984d40eaa`).
+
+> [!IMPORTANT]
+> The `ntn` default workspace is **Bloom & Matter**, so an un-pinned first deploy
+> lands there. Pin the target on the deploy that creates the worker —
+> `NOTION_WORKSPACE_ID=<id> ntn workers deploy --name <name>` — after which
+> `workers.json` remembers it and a plain `ntn workers deploy` is safe.
 
 ---
 
