@@ -1,15 +1,11 @@
-import type { NotionPageIcon, NotionPropertyOption } from "@notionhq/custom-blocks"
+import type { NotionPropertyOption } from "@notionhq/custom-blocks"
 import { useEffect, useId, useState } from "react"
-import { IconPicker } from "./IconPicker"
 import { StatusPicker } from "./StatusPicker"
-import { StepIcon } from "./StepIcon"
 import { formatDate, type Step as StepModel } from "./steps"
 
 export type StepEdit = {
   title: string
   detail: string
-  /** Only set when the icon was changed. The bridge cannot clear one. */
-  icon?: NotionPageIcon
   /** Only set when the status was changed. */
   status?: NotionPropertyOption
 }
@@ -18,7 +14,6 @@ type StepProps = {
   step: StepModel
   index: number
   isLast: boolean
-  icon: NotionPageIcon | null | undefined
   canMoveUp: boolean
   canMoveDown: boolean
   statusOptions: NotionPropertyOption[]
@@ -39,7 +34,6 @@ export function Step({
   step,
   index,
   isLast,
-  icon,
   canMoveUp,
   canMoveDown,
   statusOptions,
@@ -81,7 +75,6 @@ export function Step({
           aria-controls={panelId}
           onClick={onToggle}
         >
-          {icon ? <StepIcon icon={icon} /> : null}
           <span className={`step-title ${step.tone ? `tone-${step.tone}` : ""}`}>
             {title}
           </span>
@@ -98,7 +91,6 @@ export function Step({
           {editing ? (
             <StepForm
               step={step}
-              icon={icon ?? null}
               statusOptions={statusOptions}
               busy={busy}
               onCancel={onStopEditing}
@@ -199,14 +191,12 @@ export function Step({
  */
 function StepForm({
   step,
-  icon,
   statusOptions,
   busy,
   onCancel,
   onSave,
 }: {
   step: StepModel
-  icon: NotionPageIcon | null
   statusOptions: NotionPropertyOption[]
   busy: boolean
   onCancel: () => void
@@ -214,50 +204,37 @@ function StepForm({
 }) {
   const [title, setTitle] = useState(step.title)
   const [detail, setDetail] = useState(step.detail)
-  const [draftIcon, setDraftIcon] = useState<NotionPageIcon | null>(icon)
-  const [iconChanged, setIconChanged] = useState(false)
   const [status, setStatus] = useState<NotionPropertyOption | null>(null)
 
   function submit() {
     onSave({
       title: title.trim(),
       detail: detail.trim(),
-      ...(iconChanged && draftIcon ? { icon: draftIcon } : {}),
       ...(status ? { status } : {}),
     })
   }
 
   return (
     <div className="step-form">
-      <div className="field">
-        <span className="field-label">Icon and title</span>
-        <div className="title-row">
-          <IconPicker
-            icon={draftIcon ?? undefined}
-            disabled={busy}
-            onPick={(next) => {
-              setDraftIcon(next)
-              setIconChanged(true)
-            }}
-          />
-          <input
-            type="text"
-            className="field-input"
-            aria-label="Step title"
-            placeholder="Name this step"
-            value={title}
-            disabled={busy}
-            autoFocus
-            onChange={(event) => setTitle(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault()
-                submit()
-              }
-            }}
-          />
-        </div>
-      </div>
+      <label className="field">
+        <span className="field-label">Title</span>
+        <input
+          type="text"
+          className="field-input"
+          aria-label="Step title"
+          placeholder="Name this step"
+          value={title}
+          disabled={busy}
+          autoFocus
+          onChange={(event) => setTitle(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault()
+              submit()
+            }
+          }}
+        />
+      </label>
 
       <label className="field">
         <span className="field-label">Detail</span>

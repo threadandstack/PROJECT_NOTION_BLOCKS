@@ -34,13 +34,9 @@ it like a toggle to reveal its detail.
   focus) and is the only chrome at rest.
 - **Editing is a mode.** Choosing "Edit stepline" reveals each step's Edit, Move
   and Remove actions plus "Add step"; "Done" puts them all away again. Within it,
-  "Edit" on a step opens a form for its icon, title, detail and status — nothing
+  "Edit" on a step opens a form for its title, detail and status — nothing
   is written until Save, and Cancel leaves the step untouched. A newly added step
   opens straight into its form, since it has nothing to read yet.
-- **Steps can carry a Notion icon.** The icon is the row's real Notion page icon,
-  so it shows in the database and on the page too, not just in the block. The edit
-  form's picker offers Notion's own flat icons in all ten of its colours, plus
-  emoji. An icon can be changed but not removed — see the constraints below.
 - Edits are written straight back to the bound Notion database, because that is
   where the content actually lives.
 - **Reorder without leaving the page.** Move up / move down rewrite the Position
@@ -62,8 +58,9 @@ name, so a database using these names binds with no manual mapping:
 | Position | `number` | Sort order — the numbering follows it |
 | Date | `date` | Optional date shown beside the title (display only) |
 
-A step's icon is not a property — it is the Notion page icon on the row itself, so
-there is nothing to map for it.
+Steps deliberately carry no icon: the numbered bullet already marks each one, and
+a page icon added elsewhere is simply not drawn. (An earlier version offered an
+icon picker; it was dropped as redundant.)
 
 **Status must be a Status property, not a Select.** The block reads the
 property's own groups (To-do / In progress / Complete) rather than matching option
@@ -107,12 +104,9 @@ and sizing are all faithful, and failed writes surface correctly. But it rejects
 page writes (`page not found`) and doesn't model status options, so these can only
 be verified against a real workspace:
 
-- saving an edit (title, detail or icon)
+- saving an edit (title, detail or status)
 - changing a status, moving a step, adding a step, removing a step
 - the status picker's menu (it shows a "bind a Status property" note locally)
-
-Icons are fetched with `pages.get`, which the shell also does not serve, so steps
-render without icons locally even when the real rows have them.
 
 Pull a real database into the shell instead if you want realistic rows:
 
@@ -180,31 +174,12 @@ worker is `notion-blocks` in **Thread & Stack**
   event never fires and the handler silently does nothing. Use a plain button
   with `onClick`. A test guards against reintroducing one, because the failure is
   invisible — the form renders perfectly and simply does not work.
-- **Notion's native icon picker cannot be opened from a block.** The bridge has
-  messages for data, pages, users and layout only — nothing for presenting host
-  UI — so a block has to draw its own picker. What it *writes* is the real thing:
-  Notion stores a built-in icon as an `external` icon at
-  `www.notion.so/icons/<name>_<colour>.svg`, which is exactly what the picker here
-  writes. The icons cannot be *loaded* from that URL, though — the sandbox blocks
-  it like any other origin — so their markup is bundled and drawn inline.
-- **An icon can be set or replaced, but not cleared.** Notion's REST API clears
-  an icon on `null` and the bridge forwards anything that is not `undefined`, so
-  this looks like it should work — but the bridge's own message schema types
-  `icon` as optional and NOT nullable, and the host drops the message rather than
-  answering it. The write then hangs instead of failing. Clearing an icon has to
-  be done on the row in Notion. (Testing this against the REST API proves nothing:
-  the bridge is a different layer with its own schema.)
 - **A rejected message is never answered**, so every bridge call needs a deadline.
   Without one, a single malformed write leaves the UI stuck mid-write with no
   error to explain it.
 - **`--content-disabled` equals `--bg-control` in light mode** (both `--gray-40`),
   so disabled text on a control is invisible. Dim disabled controls with
   `opacity` instead of recolouring them. A test guards this.
-- **A row's page icon is write-only from a query.** Data-source snapshots carry
-  properties but no icon, so icons have to be fetched per row with `pages.get` and
-  cached — and an icon changed elsewhere is not picked up until the block reloads.
-  `icon` is also optional-but-not-nullable on the update message, so a block can
-  set or replace an icon but never clear one.
 - **Colour tokens are not all theme-aware.** The semantic tokens
   (`--content-*`, `--bg-*`, `--border-*`) flip between light and dark; the raw
   palette scale (`--red-60`, `--blue-60`…) does not — only the contrast modes
@@ -221,12 +196,6 @@ blocks/stepline/
   src/App.tsx             query, write handlers, add / move / remove
   src/Step.tsx            one step: bullet, header toggle, read view, edit form
   src/StatusPicker.tsx    status menu
-  src/IconPicker.tsx      emoji picker for a step's page icon
-  src/StepIcon.tsx        renders whichever icon variant a step carries
-  src/emoji.ts            the bundled emoji set and its search
-  src/notionIcons.ts      Notion's flat icons — bundled markup, colours, URLs
-  src/NotionIconGlyph.tsx draws a bundled Notion icon inline
-  src/useStepIcons.ts     fetches and caches each row's page icon
   src/steps.ts            ordering, status→phase mapping, date parsing
   src/index.css           Notion design tokens
 data/steps.json           sample rows for the dev shell

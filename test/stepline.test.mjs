@@ -122,25 +122,6 @@ test("appends new steps after the highest position", () => {
   )
 })
 
-test("icon search matches keywords and group names", async () => {
-  const { searchEmoji, EMOJI_GROUPS } = await import("../blocks/stepline/src/emoji.ts")
-
-  assert.equal(searchEmoji(""), null, "an empty query shows the grouped list")
-  assert.equal(searchEmoji("   "), null)
-
-  const build = searchEmoji("build")
-  assert.ok(build.length > 0)
-  assert.ok(build.every((entry) => entry.keywords.includes("build")))
-
-  // A group name is searchable even when no keyword carries it.
-  assert.ok(searchEmoji("progress").length > 0)
-  assert.equal(searchEmoji("ZZZZ").length, 0)
-
-  // Every emoji is unique, so React keys and the picker grid stay stable.
-  const chars = EMOJI_GROUPS.flatMap((group) => group.emoji.map((e) => e.char))
-  assert.equal(new Set(chars).size, chars.length, "duplicate emoji in the set")
-})
-
 test("the block uses no form elements", async () => {
   // The custom-block sandbox disallows forms: a submit button's event never
   // fires, so Save would silently do nothing. Guard against reintroducing one.
@@ -154,69 +135,6 @@ test("the block uses no form elements", async () => {
     assert.doesNotMatch(code, /<form[\s>]/, `${file} renders a <form>`)
     assert.doesNotMatch(code, /type="submit"/, `${file} has a submit button`)
   }
-})
-
-test("Notion icons build the URL Notion itself stores", async () => {
-  const { NOTION_ICONS, NOTION_ICON_COLOURS, notionIconUrl, searchNotionIcons } =
-    await import("../blocks/stepline/src/notionIcons.ts")
-
-  assert.equal(
-    notionIconUrl("target", "blue"),
-    "https://www.notion.so/icons/target_blue.svg"
-  )
-  assert.equal(NOTION_ICON_COLOURS.length, 10)
-
-  const names = NOTION_ICONS.map((icon) => icon.name)
-  assert.ok(names.length > 50)
-  assert.equal(new Set(names).size, names.length, "duplicate icon names")
-
-  // An icon's own name is always searchable, aliases or not.
-  for (const name of ["rocket", "calendar", "target"]) {
-    assert.ok(
-      searchNotionIcons(name)?.some((icon) => icon.name === name),
-      `${name} is not findable by its own name`
-    )
-  }
-
-  // Aliases let intent find the right icon.
-  assert.ok(searchNotionIcons("done")?.some((icon) => icon.name === "checkmark"))
-  assert.equal(searchNotionIcons("")?.length, undefined)
-})
-
-test("bundled icons render without the network, and stored URLs map back", async () => {
-  const {
-    NOTION_ICONS,
-    NOTION_ICON_HEX,
-    NOTION_ICON_COLOURS,
-    notionIcon,
-    notionIconUrl,
-    parseNotionIconUrl,
-  } = await import("../blocks/stepline/src/notionIcons.ts")
-
-  // Every icon ships its own markup — nothing is fetched at runtime.
-  for (const icon of NOTION_ICONS) {
-    assert.ok(icon.svg.includes("<path"), `${icon.name} has no path markup`)
-    assert.doesNotMatch(icon.svg, /fill="#/, `${icon.name} kept a baked-in fill`)
-    assert.doesNotMatch(icon.svg, /https?:/, `${icon.name} references a remote asset`)
-  }
-
-  // Each colour has Notion's own hex, so the fill is applied at render time.
-  for (const colour of NOTION_ICON_COLOURS) {
-    assert.match(NOTION_ICON_HEX[colour], /^#[0-9A-F]{6}$/i, `${colour} hex`)
-  }
-
-  // A stored icon URL round-trips, so an existing icon can be drawn locally.
-  const url = notionIconUrl("rocket", "blue")
-  assert.deepEqual(parseNotionIconUrl(url), { name: "rocket", colour: "blue" })
-  assert.ok(notionIcon("rocket"))
-
-  // Anything that is not a bundled built-in is left alone for the <img> path.
-  assert.equal(parseNotionIconUrl("https://example.com/x.png"), undefined)
-  assert.equal(parseNotionIconUrl(notionIconUrl("not-an-icon", "blue")), undefined)
-  assert.equal(
-    parseNotionIconUrl("https://www.notion.so/icons/rocket_chartreuse.svg"),
-    undefined
-  )
 })
 
 test("titles take the status colour the workspace configured", async () => {

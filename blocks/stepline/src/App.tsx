@@ -3,7 +3,6 @@ import { useDataSource } from "@notionhq/custom-blocks/react"
 import { useCallback, useMemo, useState } from "react"
 import { Step, type StepEdit } from "./Step"
 import { nextPosition, statusOptions, toSteps, type Step as StepModel } from "./steps"
-import { useStepIcons } from "./useStepIcons"
 
 const DATA_SOURCE_KEY = "steps"
 const PAGE_SIZE = 25
@@ -43,9 +42,6 @@ export function App() {
     () => toSteps(items, propertySchemasByKey.status),
     [items, propertySchemasByKey.status]
   )
-
-  const ids = useMemo(() => steps.map((step) => step.id), [steps])
-  const { icons, setIcon } = useStepIcons(ids)
 
   /**
    * Run one write, keeping the affected step disabled until it settles and
@@ -101,7 +97,7 @@ export function App() {
     [editingId]
   )
 
-  /** Save title, detail and icon together, so one edit is one write. */
+  /** Save every changed field together, so one edit is one write. */
   function save(step: StepModel, edit: StepEdit) {
     const properties: NotionPagePropertyInputMap = {}
 
@@ -123,23 +119,15 @@ export function App() {
       properties.status = { type: "status", status: { id: edit.status.id } }
     }
 
-    const hasProperties = Object.keys(properties).length > 0
-    const iconChanged = edit.icon !== undefined
     // Nothing changed — close the form without troubling Notion.
-    if (!hasProperties && !iconChanged) {
+    if (Object.keys(properties).length === 0) {
       setEditingId(null)
       return
     }
 
     void write(step.id, async () => {
-      const result = await step.row.update({
-        ...(hasProperties ? { properties } : {}),
-        ...(iconChanged ? { icon: edit.icon } : {}),
-      })
-      if (result.status === "success") {
-        if (iconChanged && edit.icon) setIcon(step.id, edit.icon)
-        setEditingId(null)
-      }
+      const result = await step.row.update({ properties })
+      if (result.status === "success") setEditingId(null)
       return result
     })
   }
@@ -264,7 +252,6 @@ export function App() {
               step={step}
               index={index + 1}
               isLast={index === steps.length - 1}
-              icon={icons[step.id]}
               canMoveUp={index > 0}
               canMoveDown={index < steps.length - 1}
               statusOptions={options}

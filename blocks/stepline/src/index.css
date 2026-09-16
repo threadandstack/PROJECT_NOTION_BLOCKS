@@ -153,29 +153,6 @@
   outline-offset: 1px;
 }
 
-.step-icon {
-  flex: none;
-  font-size: var(--text-title);
-  line-height: 1;
-}
-
-/*
- * Notion draws its flat icons with padding inside a 20x20 canvas, so matching
- * the emoji's 17px optically means giving the image a slightly larger box.
- */
-.step-icon-image {
-  width: var(--spacing-20);
-  height: var(--spacing-20);
-  object-fit: contain;
-  border-radius: var(--radius-2);
-}
-
-.title-row {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-6);
-}
-
 /*
  * A step title is a heading for the text under it, so it takes the title step of
  * the scale (17px) rather than body (14px), which the detail copy keeps.
@@ -471,7 +448,6 @@
 .ghost-button:disabled,
 .add-button:disabled,
 .primary-button:disabled,
-.icon-trigger:disabled,
 .status-trigger:disabled {
   opacity: 0.45;
   cursor: default;
@@ -522,165 +498,6 @@
 .primary-button:disabled {
   background: var(--bg-interactive-strong);
   color: var(--content-on-interactive-strong);
-}
-
-/* ── Icon picker ──────────────────────────────────────────────────────── */
-
-.icon-picker {
-  position: relative;
-  flex: none;
-}
-
-.icon-trigger {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--spacing-32);
-  height: var(--spacing-32);
-  padding: 0;
-  font: inherit;
-  cursor: pointer;
-  background: var(--bg-control);
-  border: 1px solid var(--border-control);
-  border-radius: var(--radius-6);
-  color: var(--content-tertiary);
-}
-
-.icon-trigger:hover:not(:disabled) {
-  background: var(--bg-control-hover);
-}
-
-.icon-empty {
-  font-size: var(--text-body);
-  line-height: 1;
-}
-
-.icon-menu {
-  position: absolute;
-  z-index: 3;
-  top: calc(100% + var(--spacing-4));
-  left: 0;
-  width: var(--spacing-96);
-  min-width: 300px;
-  padding: var(--spacing-8);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-8);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-primary);
-  border-radius: var(--radius-8);
-  box-shadow: var(--shadow-md);
-}
-
-.icon-tabs {
-  display: flex;
-  gap: var(--spacing-2);
-}
-
-.icon-tab {
-  font: inherit;
-  font-size: var(--text-body-sm);
-  padding: var(--spacing-4) var(--spacing-10);
-  border: none;
-  border-radius: var(--radius-6);
-  background: transparent;
-  color: var(--content-secondary);
-  cursor: pointer;
-}
-
-.icon-tab:hover {
-  background: var(--bg-hover);
-}
-
-/*
- * --bg-control-selected is a dark fill in both themes, so its label has to be
- * --content-on-control. Pairing it with --content-primary made the active tab's
- * text invisible on light backgrounds.
- */
-.icon-tab.is-active {
-  background: var(--bg-control-selected);
-  color: var(--content-on-control);
-  font-weight: var(--font-weight-medium);
-}
-
-.icon-menu-head {
-  display: flex;
-  gap: var(--spacing-6);
-}
-
-.icon-menu-head .field-input {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.colour-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-4);
-}
-
-.colour-swatch {
-  width: var(--spacing-16);
-  height: var(--spacing-16);
-  padding: 0;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--border-control);
-  cursor: pointer;
-}
-
-.colour-swatch.is-active {
-  outline: 2px solid var(--border-interactive-primary);
-  outline-offset: 1px;
-}
-
-.icon-option-image {
-  width: var(--spacing-20);
-  height: var(--spacing-20);
-  object-fit: contain;
-}
-
-.icon-scroll {
-  max-height: 220px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-8);
-}
-
-.icon-group-name {
-  margin: 0 0 var(--spacing-4);
-  font-size: var(--text-body-xs);
-  font-weight: var(--font-weight-medium);
-  color: var(--content-tertiary);
-}
-
-.icon-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(var(--spacing-32), 1fr));
-  gap: var(--spacing-2);
-}
-
-.icon-option {
-  aspect-ratio: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--text-body);
-  line-height: 1;
-  padding: 0;
-  cursor: pointer;
-  background: transparent;
-  border: none;
-  border-radius: var(--radius-4);
-}
-
-.icon-option:hover {
-  background: var(--bg-hover);
-}
-
-.icon-option:focus-visible {
-  outline: 2px solid var(--border-interactive-primary);
-  outline-offset: -2px;
 }
 
 .stepline-footer {
