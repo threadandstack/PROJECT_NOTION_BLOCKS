@@ -5,7 +5,7 @@ from. A **custom block** is a small React app that Notion embeds in a page as a
 sandboxed iframe, with live read/write access to data sources the person
 configures when they insert it.
 
-Currently ships one block: **Timeline**.
+Currently ships one block: **Stepline (vertical)**.
 
 > [!NOTE]
 > Custom blocks are in Notion's **private alpha**. The workspace needs the
@@ -14,27 +14,29 @@ Currently ships one block: **Timeline**.
 
 ---
 
-## The Timeline block
+## The Stepline (vertical) block
 
-A vertical, numbered timeline rendered inline in a Notion page. Each step is a
+A vertical, numbered stepline rendered inline in a Notion page. Each step is a
 circular bullet joined to the next by a connecting line. Clicking a step expands
-it like a toggle; the panel underneath is where the step is edited.
+it like a toggle to reveal its detail.
 
 - **Numbered bullets, connected by a rail.** Steps are numbered by their place in
   the sequence. Completed steps swap their number for a tick and fill in, so the
   rail reads as progress at a glance.
 - **Status drives the bullet.** Complete steps fill solid, in-progress steps get
   a highlighted ring, not-started steps stay outlined.
-- **Reads as content, edits on request.** An expanded step shows its detail as
-  rendered text. "Edit" swaps in a form for the title, detail and icon; nothing is
-  written until Save, and Cancel leaves the step untouched. A newly added step
+- **Reading it shows no controls at all.** An open step is its detail text on the
+  page — no card, no buttons. "Edit stepline" appears on hover (and on keyboard
+  focus) and is the only chrome at rest.
+- **Editing is a mode.** Choosing "Edit stepline" reveals each step's Edit, Move
+  and Remove actions plus "Add step"; "Done" puts them all away again. Within it,
+  "Edit" on a step opens a form for its icon, title, detail and status — nothing
+  is written until Save, and Cancel leaves the step untouched. A newly added step
   opens straight into its form, since it has nothing to read yet.
 - **Steps can carry a Notion icon.** The icon is the row's real Notion page icon,
   so it shows in the database and on the page too, not just in the block. The edit
   form's picker offers Notion's own flat icons in all ten of its colours, plus
   emoji.
-- **Status changes without opening the form** — the pill in an expanded step is
-  the picker, the way it behaves in Notion.
 - Edits are written straight back to the bound Notion database, because that is
   where the content actually lives.
 - **Reorder without leaving the page.** Move up / move down rewrite the Position
@@ -85,7 +87,7 @@ npm run dev
 
 Then open http://localhost:9873. The shell builds the worker, reads the block
 declaration, and serves the block with live reload. `data/steps.json` is a sample
-timeline it binds against — pick **Steps (sample)** in the shell's *Data* panel
+stepline it binds against — pick **Steps (sample)** in the shell's *Data* panel
 if it auto-binds to the empty generated source instead.
 
 Typecheck and test:
@@ -123,11 +125,15 @@ ntn login
 ntn workers deploy
 ```
 
-Then insert it into a page — type `/timeline` in the slash menu, or:
+Then insert it into a page — type `/stepline` in the slash menu, or:
 
 ```bash
 ntn workers customblocks make --key timeline --target <page-id-or-url>
 ```
+
+The `--key` is `timeline`, not `stepline`: the declaration key is the stable
+identity every placed block is bound to, so it stays put while the display name
+and slash command carry the block's public name.
 
 Map the five property slots when prompted. To let other workspace members insert
 the block, share the worker with **Can connect** access.
@@ -146,7 +152,7 @@ worker is `notion-blocks` in **Thread & Stack**
 
 ## Adding another block
 
-1. Copy `blocks/timeline/` to `blocks/<key>/` and strip it back.
+1. Copy `blocks/stepline/` to `blocks/<key>/` and strip it back.
 2. Add a second `worker.customBlock("<key>", { … })` in [src/index.ts](src/index.ts).
    Always set `command` explicitly — its default (`npm run build`) builds the
    worker, not the frontend.
@@ -191,7 +197,7 @@ worker is `notion-blocks` in **Thread & Stack**
 
 ```
 src/index.ts              worker declaration — block manifest and data source schema
-blocks/timeline/
+blocks/stepline/
   index.html              iframe document
   vite.config.ts          frontend build
   src/index.tsx           entry — NotionCustomBlock + NotionTokenScope wrappers
@@ -207,5 +213,5 @@ blocks/timeline/
   src/steps.ts            ordering, status→phase mapping, date parsing
   src/index.css           Notion design tokens
 data/steps.json           sample rows for the dev shell
-test/timeline.test.mjs    declaration and data-shaping tests
+test/stepline.test.mjs    declaration and data-shaping tests
 ```

@@ -10,6 +10,8 @@ export type StepEdit = {
   detail: string
   /** Only set when the icon was changed — the bridge cannot clear one. */
   icon?: NotionPageIcon
+  /** Only set when the status was changed. */
+  status?: NotionPropertyOption
 }
 
 type StepProps = {
@@ -21,13 +23,14 @@ type StepProps = {
   canMoveDown: boolean
   statusOptions: NotionPropertyOption[]
   expanded: boolean
+  /** Whether the stepline as a whole is being edited. */
+  editable: boolean
   editing: boolean
   busy: boolean
   onToggle: () => void
   onStartEditing: () => void
   onStopEditing: () => void
   onSave: (edit: StepEdit) => void
-  onSetStatus: (option: NotionPropertyOption) => void
   onMove: (direction: -1 | 1) => void
   onRemove: () => void
 }
@@ -41,13 +44,13 @@ export function Step({
   canMoveDown,
   statusOptions,
   expanded,
+  editable,
   editing,
   busy,
   onToggle,
   onStartEditing,
   onStopEditing,
   onSave,
-  onSetStatus,
   onMove,
   onRemove,
 }: StepProps) {
@@ -55,8 +58,8 @@ export function Step({
   const [confirmingRemove, setConfirmingRemove] = useState(false)
 
   useEffect(() => {
-    if (!expanded) setConfirmingRemove(false)
-  }, [expanded])
+    if (!expanded || !editable) setConfirmingRemove(false)
+  }, [expanded, editable])
 
   const date = formatDate(step.date)
   const title = step.title || "Untitled step"
@@ -92,6 +95,7 @@ export function Step({
             <StepForm
               step={step}
               icon={icon ?? null}
+              statusOptions={statusOptions}
               busy={busy}
               onCancel={onStopEditing}
               onSave={onSave}
@@ -100,77 +104,74 @@ export function Step({
             <>
               {step.detail ? (
                 <p className="detail-read">{step.detail}</p>
-              ) : (
+              ) : editable ? (
                 <p className="detail-empty">No detail for this step yet.</p>
-              )}
+              ) : null}
 
-              <div className="step-meta">
-                <StatusPicker
-                  options={statusOptions}
-                  value={step.status}
-                  disabled={busy}
-                  onSelect={onSetStatus}
-                />
-              </div>
-
-              <div className="step-actions">
-                <button
-                  type="button"
-                  className="ghost-button"
-                  disabled={busy}
-                  onClick={onStartEditing}
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  className="ghost-button"
-                  disabled={busy || !canMoveUp}
-                  onClick={() => onMove(-1)}
-                >
-                  Move up
-                </button>
-                <button
-                  type="button"
-                  className="ghost-button"
-                  disabled={busy || !canMoveDown}
-                  onClick={() => onMove(1)}
-                >
-                  Move down
-                </button>
-
-                {confirmingRemove ? (
-                  <>
-                    <button
-                      type="button"
-                      className="ghost-button danger is-confirming"
-                      disabled={busy}
-                      onClick={onRemove}
-                    >
-                      Confirm remove
-                    </button>
-                    <button
-                      type="button"
-                      className="ghost-button"
-                      disabled={busy}
-                      onClick={() => setConfirmingRemove(false)}
-                    >
-                      Keep
-                    </button>
-                  </>
-                ) : (
+              {/*
+                Actions belong to editing the stepline, not to reading it — a
+                step that is simply open shows its words and nothing else.
+              */}
+              {editable ? (
+                <div className="step-actions">
                   <button
                     type="button"
-                    className="ghost-button danger"
+                    className="ghost-button"
                     disabled={busy}
-                    onClick={() => setConfirmingRemove(true)}
+                    onClick={onStartEditing}
                   >
-                    Remove
+                    Edit
                   </button>
-                )}
-              </div>
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    disabled={busy || !canMoveUp}
+                    onClick={() => onMove(-1)}
+                  >
+                    Move up
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    disabled={busy || !canMoveDown}
+                    onClick={() => onMove(1)}
+                  >
+                    Move down
+                  </button>
 
-              {confirmingRemove ? (
+                  {confirmingRemove ? (
+                    <>
+                      <button
+                        type="button"
+                        className="ghost-button danger is-confirming"
+                        disabled={busy}
+                        onClick={onRemove}
+                      >
+                        Confirm remove
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost-button"
+                        disabled={busy}
+                        onClick={() => setConfirmingRemove(false)}
+                      >
+                        Keep
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="ghost-button danger"
+                      disabled={busy}
+                      onClick={() => setConfirmingRemove(true)}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              ) : null}
+
+              {editable && confirmingRemove ? (
                 <p className="field-note">
                   This moves the step to Notion's archive. You can restore it
                   from the database.
@@ -195,12 +196,14 @@ export function Step({
 function StepForm({
   step,
   icon,
+  statusOptions,
   busy,
   onCancel,
   onSave,
 }: {
   step: StepModel
   icon: NotionPageIcon | null
+  statusOptions: NotionPropertyOption[]
   busy: boolean
   onCancel: () => void
   onSave: (edit: StepEdit) => void
@@ -209,12 +212,14 @@ function StepForm({
   const [detail, setDetail] = useState(step.detail)
   const [draftIcon, setDraftIcon] = useState<NotionPageIcon | null>(icon)
   const [iconChanged, setIconChanged] = useState(false)
+  const [status, setStatus] = useState<NotionPropertyOption | null>(null)
 
   function submit() {
     onSave({
       title: title.trim(),
       detail: detail.trim(),
       ...(iconChanged && draftIcon ? { icon: draftIcon } : {}),
+      ...(status ? { status } : {}),
     })
   }
 
@@ -262,6 +267,16 @@ function StepForm({
           onChange={(event) => setDetail(event.target.value)}
         />
       </label>
+
+      <div className="field">
+        <span className="field-label">Status</span>
+        <StatusPicker
+          options={statusOptions}
+          value={status?.name ?? step.status}
+          disabled={busy}
+          onSelect={setStatus}
+        />
+      </div>
 
       <div className="step-actions">
         <button

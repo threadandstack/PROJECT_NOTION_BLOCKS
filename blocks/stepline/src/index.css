@@ -16,16 +16,44 @@
  * underneath. Without this gap the "Add step" button sits beneath the handle and
  * cannot be clicked.
  */
-.timeline-root {
+.stepline-root {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--spacing-12);
   padding: var(--spacing-4) var(--spacing-2) var(--spacing-24);
 }
 
+/*
+ * The edit control is revealed on hover so a stepline at rest is only its steps.
+ * `focus-within` keeps it reachable from the keyboard, and it stays visible
+ * while editing so there is always a way back out.
+ */
+.stepline-toolbar {
+  position: absolute;
+  top: 0;
+  right: var(--spacing-2);
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.stepline-root:hover .stepline-toolbar,
+.stepline-root:focus-within .stepline-toolbar,
+.stepline-root.is-editable .stepline-toolbar {
+  opacity: 1;
+}
+
+/* Touch and keyboard-only users never hover, so never hide it from them. */
+@media (hover: none) {
+  .stepline-toolbar {
+    opacity: 1;
+  }
+}
+
 /* ── The rail ─────────────────────────────────────────────────────────── */
 
-.timeline {
+.stepline {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -203,15 +231,17 @@
 
 /* ── Expanded panel ───────────────────────────────────────────────────── */
 
+/*
+ * Deliberately no card, border or tint: an open step is body copy on the page,
+ * not a callout sitting on top of it. The indent under the title is the only
+ * thing marking it as belonging to that step.
+ */
 .step-panel {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-10);
-  padding: var(--spacing-10) var(--spacing-12) var(--spacing-12);
-  margin-top: var(--spacing-4);
-  border: 1px solid var(--border-primary);
-  border-radius: var(--radius-10);
-  background: var(--bg-muted);
+  padding: var(--spacing-2) var(--spacing-6) var(--spacing-10);
+  background: transparent;
 }
 
 .step-panel[hidden] {
@@ -221,6 +251,7 @@
 .detail-read {
   margin: 0;
   font-size: var(--text-body);
+  font-weight: var(--font-weight-regular);
   line-height: var(--text-body--line-height);
   color: var(--content-primary);
   white-space: pre-wrap;
@@ -590,7 +621,7 @@
   outline-offset: -2px;
 }
 
-.timeline-footer {
+.stepline-footer {
   display: flex;
   flex-wrap: wrap;
   align-items: center;

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import test from "node:test"
-import { formatDate, nextPosition, toSteps } from "../blocks/timeline/src/steps.ts"
+import { formatDate, nextPosition, toSteps } from "../blocks/stepline/src/steps.ts"
 
 const workerUrl = new URL("../src/index.ts", import.meta.url)
 
@@ -26,13 +26,17 @@ const statusSchema = {
   ],
 }
 
-test("declares the timeline block and the properties it binds", async () => {
+test("declares the stepline block and the properties it binds", async () => {
   const source = await readFile(workerUrl, "utf8")
 
+  // The key stays "timeline" deliberately — it is the identity placed blocks
+  // bind to, so renaming it would orphan the ones already on pages. Only the
+  // display name and slash command are the block's public name.
   assert.match(source, /worker\.customBlock\("timeline"/)
-  assert.match(source, /path:\s*"\.\/blocks\/timeline"/)
+  assert.match(source, /name:\s*"Stepline \(vertical\)"/)
+  assert.match(source, /slashCommand:\s*"stepline"/)
+  assert.match(source, /path:\s*"\.\/blocks\/stepline"/)
   assert.match(source, /command:\s*"npx vite build"/)
-  assert.match(source, /slashCommand:\s*"timeline"/)
 
   for (const key of ["title", "detail", "status", "position", "date"]) {
     assert.match(source, new RegExp(`${key}:\\s*\\{`), `missing ${key} property`)
@@ -119,7 +123,7 @@ test("appends new steps after the highest position", () => {
 })
 
 test("icon search matches keywords and group names", async () => {
-  const { searchEmoji, EMOJI_GROUPS } = await import("../blocks/timeline/src/emoji.ts")
+  const { searchEmoji, EMOJI_GROUPS } = await import("../blocks/stepline/src/emoji.ts")
 
   assert.equal(searchEmoji(""), null, "an empty query shows the grouped list")
   assert.equal(searchEmoji("   "), null)
@@ -140,7 +144,7 @@ test("icon search matches keywords and group names", async () => {
 test("the block uses no form elements", async () => {
   // The custom-block sandbox disallows forms: a submit button's event never
   // fires, so Save would silently do nothing. Guard against reintroducing one.
-  const dir = new URL("../blocks/timeline/src/", import.meta.url)
+  const dir = new URL("../blocks/stepline/src/", import.meta.url)
   const { readdir } = await import("node:fs/promises")
 
   for (const file of await readdir(dir)) {
@@ -154,7 +158,7 @@ test("the block uses no form elements", async () => {
 
 test("Notion icons build the URL Notion itself stores", async () => {
   const { NOTION_ICONS, NOTION_ICON_COLOURS, notionIconUrl, searchNotionIcons } =
-    await import("../blocks/timeline/src/notionIcons.ts")
+    await import("../blocks/stepline/src/notionIcons.ts")
 
   assert.equal(
     notionIconUrl("target", "blue"),
@@ -187,7 +191,7 @@ test("bundled icons render without the network, and stored URLs map back", async
     notionIcon,
     notionIconUrl,
     parseNotionIconUrl,
-  } = await import("../blocks/timeline/src/notionIcons.ts")
+  } = await import("../blocks/stepline/src/notionIcons.ts")
 
   // Every icon ships its own markup — nothing is fetched at runtime.
   for (const icon of NOTION_ICONS) {

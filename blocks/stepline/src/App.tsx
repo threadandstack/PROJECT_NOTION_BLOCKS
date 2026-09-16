@@ -1,8 +1,4 @@
-import {
-  pages,
-  type NotionPagePropertyInputMap,
-  type NotionPropertyOption,
-} from "@notionhq/custom-blocks"
+import { pages, type NotionPagePropertyInputMap } from "@notionhq/custom-blocks"
 import { useDataSource } from "@notionhq/custom-blocks/react"
 import { useCallback, useMemo, useState } from "react"
 import { Step, type StepEdit } from "./Step"
@@ -18,6 +14,9 @@ type WriteResult = { status: "success" } | { status: "error"; error: { message: 
 
 export function App() {
   const [limit, setLimit] = useState(PAGE_SIZE)
+  // Editing is a mode for the whole stepline, not a state of each step: reading
+  // it should show words, not controls.
+  const [editable, setEditable] = useState(false)
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
   const [editingId, setEditingId] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -93,6 +92,9 @@ export function App() {
           : [],
       }
     }
+    if (edit.status && edit.status.name !== step.status) {
+      properties.status = { type: "status", status: { id: edit.status.id } }
+    }
 
     const hasProperties = Object.keys(properties).length > 0
     // Nothing changed — close the form without troubling Notion.
@@ -112,14 +114,6 @@ export function App() {
       }
       return result
     })
-  }
-
-  function setStatus(step: StepModel, option: NotionPropertyOption) {
-    void write(step.id, () =>
-      step.row.update({
-        properties: { status: { type: "status", status: { id: option.id } } },
-      })
-    )
   }
 
   /**
@@ -161,6 +155,13 @@ export function App() {
     })
   }
 
+  function toggleEditable() {
+    setEditable((current) => {
+      if (current) setEditingId(null)
+      return !current
+    })
+  }
+
   /** A new step has nothing to read, so it opens straight into its edit form. */
   function addStep() {
     void write("new", async () => {
@@ -185,7 +186,7 @@ export function App() {
   if (error) {
     return (
       <div className="notice notice-error" role="alert">
-        Couldn't load the timeline: {error.message}
+        Couldn't load the stepline: {error.message}
       </div>
     )
   }
@@ -193,13 +194,28 @@ export function App() {
   if (isLoading && steps.length === 0) {
     return (
       <div className="notice" aria-busy="true">
-        Loading timeline…
+        Loading stepline…
       </div>
     )
   }
 
   return (
-    <main className="timeline-root">
+    /*
+     * The edit control lives on hover, so a stepline at rest is just its steps.
+     * `focus-within` matters as much as hover: without it the control would be
+     * unreachable by keyboard.
+     */
+    <main className={`stepline-root ${editable ? "is-editable" : ""}`}>
+      <div className="stepline-toolbar">
+        <button
+          type="button"
+          className={editable ? "primary-button" : "ghost-button"}
+          onClick={toggleEditable}
+        >
+          {editable ? "Done" : "Edit stepline"}
+        </button>
+      </div>
+
       {writeError ? (
         <div className="notice notice-error" role="alert">
           {writeError}
@@ -208,10 +224,12 @@ export function App() {
 
       {steps.length === 0 ? (
         <p className="empty">
-          No steps yet. Add the first one to start the timeline.
+          {editable
+            ? "No steps yet. Add the first one below."
+            : "No steps yet. Choose “Edit stepline” to add one."}
         </p>
       ) : (
-        <ol className="timeline">
+        <ol className="stepline">
           {steps.map((step, index) => (
             <Step
               key={step.id}
@@ -223,13 +241,13 @@ export function App() {
               canMoveDown={index < steps.length - 1}
               statusOptions={options}
               expanded={expanded.has(step.id)}
+              editable={editable}
               editing={editingId === step.id}
               busy={busyId === step.id}
               onToggle={() => toggle(step.id)}
               onStartEditing={() => setEditingId(step.id)}
               onStopEditing={() => setEditingId(null)}
               onSave={(edit) => save(step, edit)}
-              onSetStatus={(option) => setStatus(step, option)}
               onMove={(direction) => move(index, direction)}
               onRemove={() => remove(step)}
             />
@@ -237,15 +255,17 @@ export function App() {
         </ol>
       )}
 
-      <div className="timeline-footer">
-        <button
-          type="button"
-          className="add-button"
-          disabled={busyId !== null}
-          onClick={addStep}
-        >
-          + Add step
-        </button>
+      <div className="stepline-footer">
+        {editable ? (
+          <button
+            type="button"
+            className="add-button"
+            disabled={busyId !== null}
+            onClick={addStep}
+          >
+            + Add step
+          </button>
+        ) : null}
 
         {hasMore && limit < MAX_ROWS ? (
           <button
@@ -260,7 +280,7 @@ export function App() {
 
         {hasMore && limit >= MAX_ROWS ? (
           <span className="field-note">
-            Showing the first {MAX_ROWS} steps — this timeline has more.
+            Showing the first {MAX_ROWS} steps — this stepline has more.
           </span>
         ) : null}
       </div>

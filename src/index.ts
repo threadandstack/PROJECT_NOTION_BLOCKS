@@ -3,9 +3,9 @@ import { Worker } from "@notionhq/workers"
 const worker = new Worker()
 export default worker
 
-// ─── Vertical timeline ──────────────────────────────────────────────────────
+// ─── Stepline (vertical) ────────────────────────────────────────────────────
 //
-// A numbered, connected timeline rendered inline in a Notion page. Each step is
+// A numbered, connected stepline rendered inline in a Notion page. Each step is
 // a row in a bound data source, so the content lives in Notion and stays
 // editable from the database as well as from the block itself.
 //
@@ -14,13 +14,18 @@ export default worker
 // appearance — the block reads the bound property's status groups (To do /
 // In progress / Complete) rather than hard-coding option names, so it adapts to
 // whatever status scheme the workspace already uses.
+//
+// The declaration key stays "timeline" on purpose. It is the stable identity
+// every placed block instance is bound to, and renaming it would orphan the
+// ones already on pages; only the display name and slash command are the
+// block's public name.
 worker.customBlock("timeline", {
-  name: "Timeline",
+  name: "Stepline (vertical)",
   description:
-    "A vertical, numbered timeline. Each step expands to reveal its detail, and carries a status.",
+    "A vertical, numbered stepline. Each step expands to reveal its detail, and carries a status.",
   icon: { type: "emoji", emoji: "🧭" },
-  slashCommand: "timeline",
-  path: "./blocks/timeline",
+  slashCommand: "stepline",
+  path: "./blocks/stepline",
   command: "npx vite build",
   output: "dist",
   version: 1,
