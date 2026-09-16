@@ -136,3 +136,30 @@ test("icon search matches keywords and group names", async () => {
   const chars = EMOJI_GROUPS.flatMap((group) => group.emoji.map((e) => e.char))
   assert.equal(new Set(chars).size, chars.length, "duplicate emoji in the set")
 })
+
+test("Notion icons build the URL Notion itself stores", async () => {
+  const { NOTION_ICONS, NOTION_ICON_COLOURS, notionIconUrl, searchNotionIcons } =
+    await import("../blocks/timeline/src/notionIcons.ts")
+
+  assert.equal(
+    notionIconUrl("target", "blue"),
+    "https://www.notion.so/icons/target_blue.svg"
+  )
+  assert.equal(NOTION_ICON_COLOURS.length, 10)
+
+  const names = NOTION_ICONS.map((icon) => icon.name)
+  assert.ok(names.length > 50)
+  assert.equal(new Set(names).size, names.length, "duplicate icon names")
+
+  // An icon's own name is always searchable, aliases or not.
+  for (const name of ["rocket", "calendar", "target"]) {
+    assert.ok(
+      searchNotionIcons(name)?.some((icon) => icon.name === name),
+      `${name} is not findable by its own name`
+    )
+  }
+
+  // Aliases let intent find the right icon.
+  assert.ok(searchNotionIcons("done")?.some((icon) => icon.name === "checkmark"))
+  assert.equal(searchNotionIcons("")?.length, undefined)
+})

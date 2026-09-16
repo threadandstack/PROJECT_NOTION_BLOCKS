@@ -1,6 +1,13 @@
 import type { NotionPageIcon } from "@notionhq/custom-blocks"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { EMOJI_GROUPS, searchEmoji } from "./emoji"
+import {
+  NOTION_ICON_COLOURS,
+  NOTION_ICONS,
+  notionIconUrl,
+  searchNotionIcons,
+  type NotionIconColour,
+} from "./notionIcons"
 import { StepIcon } from "./StepIcon"
 
 type IconPickerProps = {
@@ -9,23 +16,29 @@ type IconPickerProps = {
   onPick: (icon: NotionPageIcon) => void
 }
 
+type Tab = "icons" | "emoji"
+
 /**
- * Emoji picker for a step's Notion page icon.
+ * Icon picker offering Notion's own flat icons alongside emoji.
  *
- * Only emoji can be chosen here. A step that already carries a custom emoji or
- * an uploaded image keeps it — the trigger renders it and it survives until
- * someone picks a replacement — but the block does not offer those, because
- * custom emoji need workspace IDs the sandbox cannot browse and file uploads
- * are not available to custom blocks.
+ * This is a picker the block draws itself. Notion's native picker cannot be
+ * summoned from a custom block: the bridge exposes messages for data, pages,
+ * users and layout only, and has nothing for opening host UI — so a block can
+ * write any icon it likes, but cannot ask Notion to present its chooser.
  *
- * There is deliberately no "remove icon" control. The bridge's update message
+ * What it writes is the real thing regardless. A Notion flat icon is stored as
+ * an `external` icon pointing at Notion's icon host, exactly as the native
+ * picker stores it, so the result is indistinguishable from one chosen in Notion.
+ *
+ * There is deliberately no "remove icon" control: the bridge's update message
  * types `icon` as optional but not nullable, so an icon can be set or replaced
- * but never cleared; a remove button here would silently do nothing. Clearing an
- * icon has to be done on the page itself in Notion.
+ * but never cleared. Clearing one has to be done on the page itself.
  */
 export function IconPicker({ icon, disabled, onPick }: IconPickerProps) {
   const [open, setOpen] = useState(false)
+  const [tab, setTab] = useState<Tab>("icons")
   const [query, setQuery] = useState("")
+  const [colour, setColour] = useState<NotionIconColour>("gray")
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -49,12 +62,20 @@ export function IconPicker({ icon, disabled, onPick }: IconPickerProps) {
     }
   }, [open])
 
-  const results = useMemo(() => searchEmoji(query), [query])
+  const iconResults = useMemo(() => searchNotionIcons(query), [query])
+  const emojiResults = useMemo(() => searchEmoji(query), [query])
 
-  function choose(char: string) {
+  function chooseIcon(name: string) {
+    setOpen(false)
+    onPick({ type: "external", external: { url: notionIconUrl(name, colour) } })
+  }
+
+  function chooseEmoji(char: string) {
     setOpen(false)
     onPick({ type: "emoji", emoji: char })
   }
+
+  const icons = iconResults ?? NOTION_ICONS
 
   return (
     <div className="icon-picker" ref={containerRef}>
@@ -72,33 +93,95 @@ export function IconPicker({ icon, disabled, onPick }: IconPickerProps) {
 
       {open ? (
         <div className="icon-menu" role="dialog" aria-label="Choose an icon">
-          <div className="icon-menu-head">
-            <input
-              type="search"
-              className="field-input"
-              placeholder="Search icons"
-              aria-label="Search icons"
-              value={query}
-              autoFocus
-              onChange={(event) => setQuery(event.target.value)}
-            />
+          <div className="icon-tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "icons"}
+              className={`icon-tab ${tab === "icons" ? "is-active" : ""}`}
+              onClick={() => setTab("icons")}
+            >
+              Icons
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "emoji"}
+              className={`icon-tab ${tab === "emoji" ? "is-active" : ""}`}
+              onClick={() => setTab("emoji")}
+            >
+              Emoji
+            </button>
           </div>
 
+          <input
+            type="search"
+            className="field-input"
+            placeholder={tab === "icons" ? "Search icons" : "Search emoji"}
+            aria-label={tab === "icons" ? "Search icons" : "Search emoji"}
+            value={query}
+            autoFocus
+            onChange={(event) => setQuery(event.target.value)}
+          />
+
+          {tab === "icons" ? (
+            <div className="colour-row" role="radiogroup" aria-label="Icon colour">
+              {NOTION_ICON_COLOURS.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  role="radio"
+                  aria-checked={option === colour}
+                  aria-label={option}
+                  title={option}
+                  className={`colour-swatch notion-${option} ${
+                    option === colour ? "is-active" : ""
+                  }`}
+                  onClick={() => setColour(option)}
+                />
+              ))}
+            </div>
+          ) : null}
+
           <div className="icon-scroll">
-            {results ? (
-              results.length > 0 ? (
+            {tab === "icons" ? (
+              icons.length > 0 ? (
                 <div className="icon-grid">
-                  {results.map((entry) => (
-                    <EmojiButton
-                      key={entry.char}
-                      char={entry.char}
-                      label={entry.keywords}
-                      onPick={choose}
-                    />
+                  {icons.map((entry) => (
+                    <button
+                      key={entry.name}
+                      type="button"
+                      className="icon-option"
+                      title={entry.name.replace(/-/g, " ")}
+                      aria-label={entry.name.replace(/-/g, " ")}
+                      onClick={() => chooseIcon(entry.name)}
+                    >
+                      <img
+                        className="icon-option-image"
+                        src={notionIconUrl(entry.name, colour)}
+                        alt=""
+                        loading="lazy"
+                      />
+                    </button>
                   ))}
                 </div>
               ) : (
                 <p className="field-note">No icons match "{query}".</p>
+              )
+            ) : emojiResults ? (
+              emojiResults.length > 0 ? (
+                <div className="icon-grid">
+                  {emojiResults.map((entry) => (
+                    <EmojiButton
+                      key={entry.char}
+                      char={entry.char}
+                      label={entry.keywords}
+                      onPick={chooseEmoji}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="field-note">No emoji match "{query}".</p>
               )
             ) : (
               EMOJI_GROUPS.map((group) => (
@@ -110,7 +193,7 @@ export function IconPicker({ icon, disabled, onPick }: IconPickerProps) {
                         key={entry.char}
                         char={entry.char}
                         label={entry.keywords}
-                        onPick={choose}
+                        onPick={chooseEmoji}
                       />
                     ))}
                   </div>
