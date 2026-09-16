@@ -187,6 +187,10 @@ export function Step({
 /**
  * The edit form. Drafts are local until Save, so nothing is written to Notion
  * until it is asked for, and Cancel leaves the step exactly as it was.
+ *
+ * Deliberately not a `<form>`: the custom-block sandbox disallows form elements,
+ * so a submit button's event never fires and Save silently does nothing. Enter in
+ * the title field stands in for submitting.
  */
 function StepForm({
   step,
@@ -206,8 +210,7 @@ function StepForm({
   const [draftIcon, setDraftIcon] = useState<NotionPageIcon | null>(icon)
   const [iconChanged, setIconChanged] = useState(false)
 
-  function submit(event: React.FormEvent) {
-    event.preventDefault()
+  function submit() {
     onSave({
       title: title.trim(),
       detail: detail.trim(),
@@ -216,7 +219,7 @@ function StepForm({
   }
 
   return (
-    <form className="step-form" onSubmit={submit}>
+    <div className="step-form">
       <div className="field">
         <span className="field-label">Icon and title</span>
         <div className="title-row">
@@ -237,6 +240,12 @@ function StepForm({
             disabled={busy}
             autoFocus
             onChange={(event) => setTitle(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault()
+                submit()
+              }
+            }}
           />
         </div>
       </div>
@@ -255,7 +264,12 @@ function StepForm({
       </label>
 
       <div className="step-actions">
-        <button type="submit" className="primary-button" disabled={busy}>
+        <button
+          type="button"
+          className="primary-button"
+          disabled={busy}
+          onClick={submit}
+        >
           {busy ? "Saving…" : "Save"}
         </button>
         <button
@@ -267,7 +281,7 @@ function StepForm({
           Cancel
         </button>
       </div>
-    </form>
+    </div>
   )
 }
 

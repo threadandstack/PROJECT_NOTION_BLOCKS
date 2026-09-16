@@ -137,6 +137,21 @@ test("icon search matches keywords and group names", async () => {
   assert.equal(new Set(chars).size, chars.length, "duplicate emoji in the set")
 })
 
+test("the block uses no form elements", async () => {
+  // The custom-block sandbox disallows forms: a submit button's event never
+  // fires, so Save would silently do nothing. Guard against reintroducing one.
+  const dir = new URL("../blocks/timeline/src/", import.meta.url)
+  const { readdir } = await import("node:fs/promises")
+
+  for (const file of await readdir(dir)) {
+    if (!file.endsWith(".tsx")) continue
+    const source = await readFile(new URL(file, dir), "utf8")
+    const code = source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "")
+    assert.doesNotMatch(code, /<form[\s>]/, `${file} renders a <form>`)
+    assert.doesNotMatch(code, /type="submit"/, `${file} has a submit button`)
+  }
+})
+
 test("Notion icons build the URL Notion itself stores", async () => {
   const { NOTION_ICONS, NOTION_ICON_COLOURS, notionIconUrl, searchNotionIcons } =
     await import("../blocks/timeline/src/notionIcons.ts")
@@ -162,4 +177,40 @@ test("Notion icons build the URL Notion itself stores", async () => {
   // Aliases let intent find the right icon.
   assert.ok(searchNotionIcons("done")?.some((icon) => icon.name === "checkmark"))
   assert.equal(searchNotionIcons("")?.length, undefined)
+})
+
+test("bundled icons render without the network, and stored URLs map back", async () => {
+  const {
+    NOTION_ICONS,
+    NOTION_ICON_HEX,
+    NOTION_ICON_COLOURS,
+    notionIcon,
+    notionIconUrl,
+    parseNotionIconUrl,
+  } = await import("../blocks/timeline/src/notionIcons.ts")
+
+  // Every icon ships its own markup — nothing is fetched at runtime.
+  for (const icon of NOTION_ICONS) {
+    assert.ok(icon.svg.includes("<path"), `${icon.name} has no path markup`)
+    assert.doesNotMatch(icon.svg, /fill="#/, `${icon.name} kept a baked-in fill`)
+    assert.doesNotMatch(icon.svg, /https?:/, `${icon.name} references a remote asset`)
+  }
+
+  // Each colour has Notion's own hex, so the fill is applied at render time.
+  for (const colour of NOTION_ICON_COLOURS) {
+    assert.match(NOTION_ICON_HEX[colour], /^#[0-9A-F]{6}$/i, `${colour} hex`)
+  }
+
+  // A stored icon URL round-trips, so an existing icon can be drawn locally.
+  const url = notionIconUrl("rocket", "blue")
+  assert.deepEqual(parseNotionIconUrl(url), { name: "rocket", colour: "blue" })
+  assert.ok(notionIcon("rocket"))
+
+  // Anything that is not a bundled built-in is left alone for the <img> path.
+  assert.equal(parseNotionIconUrl("https://example.com/x.png"), undefined)
+  assert.equal(parseNotionIconUrl(notionIconUrl("not-an-icon", "blue")), undefined)
+  assert.equal(
+    parseNotionIconUrl("https://www.notion.so/icons/rocket_chartreuse.svg"),
+    undefined
+  )
 })

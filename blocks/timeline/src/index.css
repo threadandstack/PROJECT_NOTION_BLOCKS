@@ -540,31 +540,6 @@
   outline-offset: 1px;
 }
 
-/*
- * Notion's icon colours, matched to the swatches its own picker shows. These are
- * fixed brand values rather than theme tokens, because the icon rendered on the
- * page is that exact colour in both light and dark.
- */
-.notion-lightgray { background: #b9b9b7; }
-.notion-gray { background: #787774; }
-.notion-brown { background: #9f6b53; }
-.notion-orange { background: #d9730d; }
-.notion-yellow { background: #cb912f; }
-.notion-green { background: #448361; }
-.notion-blue { background: #337ea9; }
-.notion-purple { background: #9065b0; }
-.notion-pink { background: #c14c8a; }
-.notion-red { background: #d44c47; }
-
-.icon-fallback {
-  font-size: var(--text-body-xs);
-  color: var(--content-tertiary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding: 0 var(--spacing-2);
-}
-
 .icon-option-image {
   width: var(--spacing-20);
   height: var(--spacing-20);

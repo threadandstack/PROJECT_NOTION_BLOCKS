@@ -1,9 +1,10 @@
 import type { NotionPageIcon } from "@notionhq/custom-blocks"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { EMOJI_GROUPS, searchEmoji } from "./emoji"
-import { NotionIconImage } from "./NotionIconImage"
+import { NotionIconGlyph } from "./NotionIconGlyph"
 import {
   NOTION_ICON_COLOURS,
+  NOTION_ICON_HEX,
   NOTION_ICONS,
   notionIconUrl,
   searchNotionIcons,
@@ -30,6 +31,8 @@ type Tab = "icons" | "emoji"
  * What it writes is the real thing regardless. A Notion flat icon is stored as
  * an `external` icon pointing at Notion's icon host, exactly as the native
  * picker stores it, so the result is indistinguishable from one chosen in Notion.
+ * The icons are drawn from bundled markup rather than loaded from that URL,
+ * because the sandbox blocks the request.
  *
  * There is deliberately no "remove icon" control: the bridge's update message
  * types `icon` as optional but not nullable, so an icon can be set or replaced
@@ -135,9 +138,8 @@ export function IconPicker({ icon, disabled, onPick }: IconPickerProps) {
                   aria-checked={option === colour}
                   aria-label={option}
                   title={option}
-                  className={`colour-swatch notion-${option} ${
-                    option === colour ? "is-active" : ""
-                  }`}
+                  className={`colour-swatch ${option === colour ? "is-active" : ""}`}
+                  style={{ background: NOTION_ICON_HEX[option] }}
                   onClick={() => setColour(option)}
                 />
               ))}
@@ -157,10 +159,10 @@ export function IconPicker({ icon, disabled, onPick }: IconPickerProps) {
                       aria-label={entry.name.replace(/-/g, " ")}
                       onClick={() => chooseIcon(entry.name)}
                     >
-                      <NotionIconImage
+                      <NotionIconGlyph
                         className="icon-option-image"
-                        url={notionIconUrl(entry.name, colour)}
                         name={entry.name}
+                        colour={colour}
                       />
                     </button>
                   ))}
