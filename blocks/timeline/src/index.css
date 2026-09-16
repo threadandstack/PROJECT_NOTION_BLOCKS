@@ -10,11 +10,17 @@
   background: var(--bg-base);
 }
 
+/*
+ * The bottom padding is deliberate: Notion draws its own block resize handle
+ * over the lower edge of the iframe, and it swallows clicks on anything
+ * underneath. Without this gap the "Add step" button sits beneath the handle and
+ * cannot be clicked.
+ */
 .timeline-root {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-12);
-  padding: var(--spacing-4) var(--spacing-2);
+  padding: var(--spacing-4) var(--spacing-2) var(--spacing-24);
 }
 
 /* ── The rail ─────────────────────────────────────────────────────────── */
