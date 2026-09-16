@@ -18,10 +18,30 @@ export type Step = {
   title: string
   detail: string
   status?: string
+  /**
+   * The colour the workspace gave this status option, normalised. Undefined
+   * when there is no status, or when its colour carries no hue — those read as
+   * ordinary text rather than as a tinted one.
+   */
+  tone?: StatusTone
   position?: number
   date?: string
   phase: StepPhase
 }
+
+/** The hues a Notion option can carry. Grey and default are deliberately absent. */
+export const STATUS_TONES = [
+  "brown",
+  "orange",
+  "yellow",
+  "green",
+  "blue",
+  "purple",
+  "pink",
+  "red",
+] as const
+
+export type StatusTone = (typeof STATUS_TONES)[number]
 
 /** Notion's three built-in status groups, lower-cased for matching. */
 const COMPLETE_GROUP = "complete"
@@ -65,6 +85,27 @@ export function statusOptions(
 ): NotionPropertyOption[] {
   if (!schema || schema.type !== "status") return []
   return schema.options ?? []
+}
+
+/**
+ * Read the colour the workspace configured for a status option.
+ *
+ * Notion writes these as plain hue names, sometimes suffixed `_background`, and
+ * `default`/`gray` for the untinted ones. Those two are treated as "no tone" so
+ * the title stays ordinary text — a grey title would read as disabled, and the
+ * common case of an untouched "Not started" is exactly that.
+ */
+function toneForStatus(
+  status: string | undefined,
+  schema: NotionPropertySchema | undefined
+): StatusTone | undefined {
+  if (!status || schema?.type !== "status") return undefined
+
+  const colour = schema.options?.find((option) => option.name === status)?.color
+  if (!colour) return undefined
+
+  const hue = colour.replace(/_background$/, "")
+  return STATUS_TONES.includes(hue as StatusTone) ? (hue as StatusTone) : undefined
 }
 
 /**
@@ -117,6 +158,7 @@ export function toSteps(
         title: asText(row.propertiesByKey.title),
         detail: asText(row.propertiesByKey.detail),
         status,
+        tone: toneForStatus(status, statusSchema),
         position: asNumber(row.propertiesByKey.position),
         date: asDateStart(row.propertiesByKey.date),
         phase: phaseForStatus(status, statusSchema),

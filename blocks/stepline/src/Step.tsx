@@ -82,9 +82,13 @@ export function Step({
           onClick={onToggle}
         >
           {icon ? <StepIcon icon={icon} /> : null}
-          <span className="step-title">{title}</span>
+          <span className={`step-title ${step.tone ? `tone-${step.tone}` : ""}`}>
+            {title}
+          </span>
           {step.status ? (
-            <span className="status-tag">{step.status}</span>
+            <span className={`status-tag ${step.tone ? `tone-${step.tone}` : ""}`}>
+              {step.status}
+            </span>
           ) : null}
           {date ? <span className="step-date">{date}</span> : null}
           <Chevron expanded={expanded} />

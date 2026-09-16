@@ -175,32 +175,10 @@
 .step-title {
   font-size: var(--text-body);
   font-weight: var(--font-weight-medium);
+  color: var(--content-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.step-complete .step-icon {
-  flex: none;
-  font-size: var(--text-body);
-  line-height: 1;
-}
-
-.step-icon-image {
-  width: var(--spacing-16);
-  height: var(--spacing-16);
-  object-fit: contain;
-  border-radius: var(--radius-2);
-}
-
-.title-row {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-6);
-}
-
-.step-title {
-  color: var(--content-secondary);
 }
 
 .step-date {
@@ -217,6 +195,58 @@
   padding: var(--spacing-2) var(--spacing-8);
   white-space: nowrap;
 }
+
+/* ── Status colours ───────────────────────────────────────────────────── */
+
+/*
+ * A step's title and its status label both take the colour the workspace gave
+ * that status option, so the stepline reads in the same colours as the database
+ * behind it. Options with no hue — `default` and `gray`, which is what an
+ * untouched "Not started" usually is — carry no tone and stay ordinary black
+ * text; a grey title would read as disabled.
+ *
+ * Built from the raw palette rather than semantic tokens because nds has no
+ * per-hue text colour, and the raw scale does not flip between light and dark —
+ * only the contrast modes redefine it. So each tone is declared twice, switching
+ * on the display mode NotionTokenScope puts on an ancestor: a dark step on light
+ * backgrounds, a light one on dark.
+ */
+.tone-brown { color: var(--brown-110); }
+.tone-orange { color: var(--orange-110); }
+.tone-yellow { color: var(--yellow-110); }
+.tone-green { color: var(--green-110); }
+.tone-blue { color: var(--blue-110); }
+.tone-purple { color: var(--purple-110); }
+.tone-pink { color: var(--pink-110); }
+.tone-red { color: var(--red-110); }
+
+[data-display-mode="dark"] .tone-brown { color: var(--brown-50); }
+[data-display-mode="dark"] .tone-orange { color: var(--orange-50); }
+[data-display-mode="dark"] .tone-yellow { color: var(--yellow-50); }
+[data-display-mode="dark"] .tone-green { color: var(--green-50); }
+[data-display-mode="dark"] .tone-blue { color: var(--blue-50); }
+[data-display-mode="dark"] .tone-purple { color: var(--purple-50); }
+[data-display-mode="dark"] .tone-pink { color: var(--pink-50); }
+[data-display-mode="dark"] .tone-red { color: var(--red-50); }
+
+/* The label also takes a tint of its own hue, the way a Notion pill does. */
+.status-tag.tone-brown { background: var(--brown-20); }
+.status-tag.tone-orange { background: var(--orange-20); }
+.status-tag.tone-yellow { background: var(--yellow-20); }
+.status-tag.tone-green { background: var(--green-20); }
+.status-tag.tone-blue { background: var(--blue-20); }
+.status-tag.tone-purple { background: var(--purple-20); }
+.status-tag.tone-pink { background: var(--pink-20); }
+.status-tag.tone-red { background: var(--red-20); }
+
+[data-display-mode="dark"] .status-tag.tone-brown { background: var(--brown-140); }
+[data-display-mode="dark"] .status-tag.tone-orange { background: var(--orange-140); }
+[data-display-mode="dark"] .status-tag.tone-yellow { background: var(--yellow-140); }
+[data-display-mode="dark"] .status-tag.tone-green { background: var(--green-140); }
+[data-display-mode="dark"] .status-tag.tone-blue { background: var(--blue-140); }
+[data-display-mode="dark"] .status-tag.tone-purple { background: var(--purple-140); }
+[data-display-mode="dark"] .status-tag.tone-pink { background: var(--pink-140); }
+[data-display-mode="dark"] .status-tag.tone-red { background: var(--red-140); }
 
 .chevron {
   margin-left: auto;

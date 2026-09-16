@@ -15,9 +15,9 @@ const statusSchema = {
   name: "Status",
   type: "status",
   options: [
-    { id: "o-todo", name: "Not started" },
-    { id: "o-doing", name: "In flight" },
-    { id: "o-done", name: "Shipped" },
+    { id: "o-todo", name: "Not started", color: "default" },
+    { id: "o-doing", name: "In flight", color: "blue" },
+    { id: "o-done", name: "Shipped", color: "green" },
   ],
   groups: [
     { id: "g1", name: "To-do", option_ids: ["o-todo"] },
@@ -216,5 +216,78 @@ test("bundled icons render without the network, and stored URLs map back", async
   assert.equal(
     parseNotionIconUrl("https://www.notion.so/icons/rocket_chartreuse.svg"),
     undefined
+  )
+})
+
+test("titles take the status colour the workspace configured", async () => {
+  const withColours = {
+    ...statusSchema,
+    options: [
+      { id: "o-1", name: "Plain", color: "default" },
+      { id: "o-2", name: "Grey", color: "gray" },
+      { id: "o-3", name: "Tinted", color: "purple_background" },
+      { id: "o-4", name: "Hot", color: "red" },
+      { id: "o-5", name: "Odd", color: "chartreuse" },
+      { id: "o-6", name: "Bare" },
+    ],
+  }
+
+  const steps = toSteps(
+    [
+      row("a", { title: "a", position: 1, status: "Plain" }),
+      row("b", { title: "b", position: 2, status: "Grey" }),
+      row("c", { title: "c", position: 3, status: "Tinted" }),
+      row("d", { title: "d", position: 4, status: "Hot" }),
+      row("e", { title: "e", position: 5, status: "Odd" }),
+      row("f", { title: "f", position: 6, status: "Bare" }),
+      row("g", { title: "g", position: 7 }),
+    ],
+    withColours
+  )
+
+  assert.deepEqual(
+    steps.map((step) => step.tone),
+    [
+      undefined, // default carries no hue, so the title stays black
+      undefined, // nor does grey — a grey title would read as disabled
+      "purple", // the _background suffix is normalised away
+      "red",
+      undefined, // an unrecognised colour is ignored rather than guessed at
+      undefined, // an option with no colour at all
+      undefined, // and no status at all
+    ]
+  )
+})
+
+test("every status tone has both a light and a dark declaration", async () => {
+  const { STATUS_TONES } = await import("../blocks/stepline/src/steps.ts")
+  const css = await readFile(
+    new URL("../blocks/stepline/src/index.css", import.meta.url),
+    "utf8"
+  )
+
+  // The raw palette does not flip between light and dark, so a tone declared
+  // only once would be unreadable in one of the two themes.
+  for (const tone of STATUS_TONES) {
+    assert.ok(css.includes(`.tone-${tone} { color:`), `${tone} has no colour`)
+    assert.ok(
+      css.includes(`[data-display-mode="dark"] .tone-${tone} { color:`),
+      `${tone} has no dark-mode colour`
+    )
+    assert.ok(
+      css.includes(`.status-tag.tone-${tone} { background:`),
+      `${tone} has no label tint`
+    )
+    assert.ok(
+      css.includes(`[data-display-mode="dark"] .status-tag.tone-${tone} { background:`),
+      `${tone} has no dark-mode label tint`
+    )
+  }
+
+  // Titles must not fall back to grey anywhere.
+  assert.doesNotMatch(
+    css,
+    /\.step-complete \.step-title/,
+    "completed titles are being greyed out"
   )
 })
