@@ -1,0 +1,399 @@
+/*
+ * Everything here is expressed in Notion design tokens (from nds.css) so the
+ * block tracks the host's light/dark and contrast modes rather than pinning its
+ * own palette. Nothing is loaded from a CDN — the sandbox blocks that.
+ */
+
+#root {
+  font-family: var(--font-sans);
+  color: var(--content-primary);
+  background: var(--bg-base);
+}
+
+.timeline-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-12);
+  padding: var(--spacing-4) var(--spacing-2);
+}
+
+/* ── The rail ─────────────────────────────────────────────────────────── */
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: var(--spacing-32) 1fr;
+  column-gap: var(--spacing-12);
+}
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* The numbered circle. Its fill is what carries the step's status. */
+.bullet {
+  flex: none;
+  width: var(--spacing-28);
+  height: var(--spacing-28);
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  border: 2px solid var(--border-strong);
+  background: var(--bg-base);
+  color: var(--content-secondary);
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+/* The line joining one bullet to the next. */
+.connector {
+  flex: 1 1 auto;
+  width: 2px;
+  min-height: var(--spacing-16);
+  margin: var(--spacing-4) 0;
+  border-radius: var(--radius-full);
+  background: var(--border-secondary);
+}
+
+.step-complete .bullet {
+  background: var(--bg-interactive-strong);
+  border-color: var(--bg-interactive-strong);
+  color: var(--content-on-interactive-strong);
+}
+
+.step-complete .connector {
+  background: var(--bg-interactive-strong);
+}
+
+.step-active .bullet {
+  border-color: var(--content-interactive-primary);
+  color: var(--content-interactive-primary);
+  box-shadow: 0 0 0 3px var(--bg-interactive-primary-translucent);
+}
+
+/* ── Step content ─────────────────────────────────────────────────────── */
+
+.step-body {
+  min-width: 0;
+  padding-bottom: var(--spacing-8);
+}
+
+.step-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  padding: var(--spacing-4) var(--spacing-6);
+  margin-left: calc(var(--spacing-6) * -1);
+  border: none;
+  border-radius: var(--radius-6);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-height: var(--spacing-28);
+}
+
+.step-header:hover {
+  background: var(--bg-hover);
+}
+
+.step-header:focus-visible {
+  outline: 2px solid var(--border-interactive-primary);
+  outline-offset: 1px;
+}
+
+.step-title {
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.step-complete .step-title {
+  color: var(--content-secondary);
+}
+
+.step-date {
+  font-size: var(--text-body-xs);
+  color: var(--content-tertiary);
+  white-space: nowrap;
+}
+
+.status-tag {
+  font-size: var(--text-body-xs);
+  color: var(--content-secondary);
+  background: var(--bg-muted);
+  border-radius: var(--radius-full);
+  padding: var(--spacing-2) var(--spacing-8);
+  white-space: nowrap;
+}
+
+.chevron {
+  margin-left: auto;
+  flex: none;
+  color: var(--content-tertiary);
+  transition: transform 140ms ease;
+}
+
+.chevron.is-open {
+  transform: rotate(90deg);
+}
+
+/* ── Expanded panel ───────────────────────────────────────────────────── */
+
+.step-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-10);
+  padding: var(--spacing-10) var(--spacing-12) var(--spacing-12);
+  margin-top: var(--spacing-4);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-10);
+  background: var(--bg-muted);
+}
+
+.step-panel[hidden] {
+  display: none;
+}
+
+.detail-read {
+  margin: 0;
+  font-size: var(--text-body-sm);
+  color: var(--content-secondary);
+  white-space: pre-wrap;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.field-label {
+  font-size: var(--text-body-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--content-tertiary);
+}
+
+.field-note {
+  margin: 0;
+  font-size: var(--text-body-xs);
+  color: var(--content-tertiary);
+}
+
+.field-input {
+  width: 100%;
+  font: inherit;
+  font-size: var(--text-body-sm);
+  color: var(--content-primary);
+  background: var(--bg-base);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-6);
+  padding: var(--spacing-6) var(--spacing-8);
+}
+
+.field-input:focus-visible {
+  outline: 2px solid var(--border-interactive-primary);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.field-input:disabled {
+  color: var(--content-disabled);
+}
+
+.field-textarea {
+  resize: vertical;
+  min-height: var(--spacing-64);
+  line-height: var(--text-body-sm--line-height);
+}
+
+/* ── Status picker ────────────────────────────────────────────────────── */
+
+.status-picker {
+  position: relative;
+  align-self: flex-start;
+}
+
+.status-trigger,
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-6);
+  font: inherit;
+  font-size: var(--text-body-sm);
+  color: var(--content-primary);
+  background: var(--bg-control);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-6);
+  padding: var(--spacing-4) var(--spacing-8);
+  cursor: pointer;
+}
+
+.status-trigger:hover {
+  background: var(--bg-control-hover);
+}
+
+.status-menu {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + var(--spacing-4));
+  left: 0;
+  min-width: var(--spacing-96);
+  list-style: none;
+  margin: 0;
+  padding: var(--spacing-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-8);
+  box-shadow: var(--shadow-md);
+}
+
+.status-option {
+  width: 100%;
+  background: transparent;
+  border: none;
+  text-align: left;
+}
+
+.status-option:hover,
+.status-option[aria-selected="true"] {
+  background: var(--bg-hover);
+}
+
+.status-swatch {
+  flex: none;
+  width: var(--spacing-8);
+  height: var(--spacing-8);
+  border-radius: var(--radius-full);
+  background: var(--content-tertiary);
+}
+
+.swatch-green { background: var(--green-60); }
+.swatch-blue { background: var(--blue-60); }
+.swatch-red { background: var(--red-60); }
+.swatch-yellow { background: var(--yellow-60); }
+.swatch-orange { background: var(--orange-60); }
+.swatch-purple { background: var(--purple-60); }
+.swatch-pink { background: var(--pink-60); }
+.swatch-brown { background: var(--brown-60); }
+.swatch-gray,
+.swatch-default { background: var(--gray-60); }
+
+/* ── Actions & footer ─────────────────────────────────────────────────── */
+
+.step-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-6);
+}
+
+.ghost-button,
+.add-button {
+  font: inherit;
+  font-size: var(--text-body-sm);
+  border-radius: var(--radius-6);
+  padding: var(--spacing-4) var(--spacing-10);
+  cursor: pointer;
+  border: 1px solid var(--border-control);
+  background: var(--bg-control);
+  color: var(--content-primary);
+}
+
+.ghost-button:hover:not(:disabled),
+.add-button:hover:not(:disabled) {
+  background: var(--bg-control-hover);
+}
+
+.ghost-button:disabled,
+.add-button:disabled {
+  color: var(--content-disabled);
+  cursor: default;
+}
+
+/*
+ * Destructive affordances carry a small red dot rather than red text or a red
+ * fill. Only the contrast modes redefine the raw --red-* scale — it does not
+ * flip between light and dark — so red text or a red tint reads correctly in one
+ * theme and poorly in the other. A dot is small enough for a fixed colour to be
+ * safe, and the label keeps the semantic --content-* contrast in both themes.
+ */
+.ghost-button.danger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-6);
+}
+
+.ghost-button.danger::before {
+  content: "";
+  width: var(--spacing-6);
+  height: var(--spacing-6);
+  border-radius: var(--radius-full);
+  background: var(--red-60);
+}
+
+.ghost-button.danger:disabled::before {
+  background: var(--content-disabled);
+}
+
+.ghost-button.danger.is-confirming:not(:disabled) {
+  font-weight: var(--font-weight-semibold);
+  background: var(--bg-control-hover);
+}
+
+.timeline-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-8);
+  padding-left: calc(var(--spacing-32) + var(--spacing-12));
+}
+
+.empty {
+  margin: 0;
+  padding-left: calc(var(--spacing-32) + var(--spacing-12));
+  font-size: var(--text-body-sm);
+  color: var(--content-tertiary);
+}
+
+.notice {
+  font-size: var(--text-body-sm);
+  color: var(--content-secondary);
+  padding: var(--spacing-8) var(--spacing-12);
+  border-radius: var(--radius-8);
+  background: var(--bg-muted);
+}
+
+.notice-error {
+  color: var(--content-primary);
+  background: var(--bg-muted);
+  border-left: 3px solid var(--red-60);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bullet,
+  .chevron {
+    transition: none;
+  }
+}
