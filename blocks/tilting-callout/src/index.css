@@ -1,0 +1,434 @@
+/*
+ * Everything here is expressed in Notion design tokens (from nds.css) so the
+ * block tracks the host's light and dark modes. Nothing is loaded from a CDN,
+ * since the sandbox blocks that.
+ */
+
+#root {
+  font-family: var(--font-sans);
+  color: var(--content-primary);
+  background: var(--bg-base);
+}
+
+/*
+ * The side and top padding leave room for the tilted corners, which would
+ * otherwise be clipped by the iframe. The bottom padding clears the resize
+ * handle Notion draws over the lower edge of the iframe, which swallows clicks.
+ */
+.callout-root {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-12);
+  padding: var(--spacing-8) var(--spacing-8) var(--spacing-24);
+}
+
+/*
+ * The edit control appears on hover, so a callout at rest is only the callout.
+ * `focus-within` keeps it reachable from the keyboard.
+ */
+.callout-toolbar {
+  position: absolute;
+  top: 0;
+  right: var(--spacing-8);
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.callout-root:hover .callout-toolbar,
+.callout-root:focus-within .callout-toolbar {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .callout-toolbar {
+    opacity: 1;
+  }
+}
+
+/* ── The tilt ─────────────────────────────────────────────────────────── */
+
+/*
+ * The outer element receives the pointer and never moves, so the hit area stays
+ * put while the body turns inside it. Moving the element under the cursor would
+ * make its edges flicker in and out of hover as it leaned.
+ */
+.tilt-surface {
+  --tilt-x: 0deg;
+  --tilt-y: 0deg;
+  --glare-x: 50%;
+  --glare-y: 50%;
+  --tilt-perspective: 800px;
+  perspective: var(--tilt-perspective);
+}
+
+.tilt-body {
+  position: relative;
+  transform: rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+  transform-style: preserve-3d;
+  /* Returning to flat eases out; following the pointer stays snappy. */
+  transition:
+    transform 450ms cubic-bezier(0.23, 1, 0.32, 1),
+    box-shadow 450ms ease;
+  will-change: transform;
+}
+
+.tilt-surface.is-tilting .tilt-body {
+  transition:
+    transform 90ms linear,
+    box-shadow 200ms ease;
+  box-shadow:
+    0 10px 24px -12px rgba(15, 15, 15, 0.25),
+    0 2px 6px -2px rgba(15, 15, 15, 0.08);
+}
+
+.tilt-glare {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    circle at var(--glare-x) var(--glare-y),
+    rgba(255, 255, 255, 0.45),
+    rgba(255, 255, 255, 0) 60%
+  );
+  transition: opacity 300ms ease;
+}
+
+.tilt-surface.is-tilting .tilt-glare {
+  opacity: 1;
+}
+
+[data-display-mode="dark"] .tilt-glare {
+  background: radial-gradient(
+    circle at var(--glare-x) var(--glare-y),
+    rgba(255, 255, 255, 0.1),
+    rgba(255, 255, 255, 0) 60%
+  );
+}
+
+[data-display-mode="dark"] .tilt-surface.is-tilting .tilt-body {
+  box-shadow: 0 10px 24px -12px rgba(0, 0, 0, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tilt-body {
+    transform: none;
+    transition: none;
+  }
+
+  .tilt-glare {
+    display: none;
+  }
+}
+
+/* ── The callout ──────────────────────────────────────────────────────── */
+
+/* Notion's callout: icon on the left, text beside it, rounded soft fill. */
+.callout .tilt-body {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-8);
+  padding: var(--spacing-16) var(--spacing-16) var(--spacing-16) var(--spacing-12);
+  border-radius: var(--radius-6);
+  border: 1px solid transparent;
+  background: var(--bg-base);
+}
+
+/* A default-coloured callout has no fill, so Notion outlines it instead. */
+.callout.callout-default .tilt-body {
+  border-color: var(--border-primary);
+}
+
+.callout-icon {
+  flex: none;
+  width: var(--spacing-24);
+  font-size: 1.3em;
+  line-height: var(--text-body--line-height, 1.5);
+  text-align: center;
+  user-select: none;
+}
+
+.callout-text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height, 1.5);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.callout-placeholder {
+  color: var(--content-tertiary);
+}
+
+/* ── Colours ──────────────────────────────────────────────────────────── */
+
+/*
+ * Notion's colour tokens. `c-*` colours a span of text (and the swatches in the
+ * editor); `callout-*` colours the whole callout, where a plain hue tints its
+ * words and a `_background` hue fills it. The raw palette does not flip between
+ * light and dark, so each is declared twice, switching on the display mode
+ * NotionTokenScope sets.
+ */
+.c-gray, .callout-gray { color: var(--gray-110); }
+.c-brown, .callout-brown { color: var(--brown-110); }
+.c-orange, .callout-orange { color: var(--orange-110); }
+.c-yellow, .callout-yellow { color: var(--yellow-110); }
+.c-green, .callout-green { color: var(--green-110); }
+.c-blue, .callout-blue { color: var(--blue-110); }
+.c-purple, .callout-purple { color: var(--purple-110); }
+.c-pink, .callout-pink { color: var(--pink-110); }
+.c-red, .callout-red { color: var(--red-110); }
+
+[data-display-mode="dark"] :is(.c-gray, .callout-gray) { color: var(--gray-50); }
+[data-display-mode="dark"] :is(.c-brown, .callout-brown) { color: var(--brown-50); }
+[data-display-mode="dark"] :is(.c-orange, .callout-orange) { color: var(--orange-50); }
+[data-display-mode="dark"] :is(.c-yellow, .callout-yellow) { color: var(--yellow-50); }
+[data-display-mode="dark"] :is(.c-green, .callout-green) { color: var(--green-50); }
+[data-display-mode="dark"] :is(.c-blue, .callout-blue) { color: var(--blue-50); }
+[data-display-mode="dark"] :is(.c-purple, .callout-purple) { color: var(--purple-50); }
+[data-display-mode="dark"] :is(.c-pink, .callout-pink) { color: var(--pink-50); }
+[data-display-mode="dark"] :is(.c-red, .callout-red) { color: var(--red-50); }
+
+.c-gray_background, .callout-gray_background .tilt-body { background: var(--gray-10); }
+.c-brown_background, .callout-brown_background .tilt-body { background: var(--brown-10); }
+.c-orange_background, .callout-orange_background .tilt-body { background: var(--orange-10); }
+.c-yellow_background, .callout-yellow_background .tilt-body { background: var(--yellow-10); }
+.c-green_background, .callout-green_background .tilt-body { background: var(--green-10); }
+.c-blue_background, .callout-blue_background .tilt-body { background: var(--blue-10); }
+.c-purple_background, .callout-purple_background .tilt-body { background: var(--purple-10); }
+.c-pink_background, .callout-pink_background .tilt-body { background: var(--pink-10); }
+.c-red_background, .callout-red_background .tilt-body { background: var(--red-10); }
+
+[data-display-mode="dark"] :is(.c-gray_background, .callout-gray_background .tilt-body) { background: var(--gray-140); }
+[data-display-mode="dark"] :is(.c-brown_background, .callout-brown_background .tilt-body) { background: var(--brown-140); }
+[data-display-mode="dark"] :is(.c-orange_background, .callout-orange_background .tilt-body) { background: var(--orange-140); }
+[data-display-mode="dark"] :is(.c-yellow_background, .callout-yellow_background .tilt-body) { background: var(--yellow-140); }
+[data-display-mode="dark"] :is(.c-green_background, .callout-green_background .tilt-body) { background: var(--green-140); }
+[data-display-mode="dark"] :is(.c-blue_background, .callout-blue_background .tilt-body) { background: var(--blue-140); }
+[data-display-mode="dark"] :is(.c-purple_background, .callout-purple_background .tilt-body) { background: var(--purple-140); }
+[data-display-mode="dark"] :is(.c-pink_background, .callout-pink_background .tilt-body) { background: var(--pink-140); }
+[data-display-mode="dark"] :is(.c-red_background, .callout-red_background .tilt-body) { background: var(--red-140); }
+
+/* ── Rich text ────────────────────────────────────────────────────────── */
+
+.rt-bold { font-weight: var(--font-weight-semibold); }
+.rt-italic { font-style: italic; }
+.rt-underline { text-decoration: underline; }
+.rt-strike { text-decoration: line-through; }
+.rt-underline.rt-strike { text-decoration: underline line-through; }
+
+.rt-link {
+  text-decoration: underline;
+  text-decoration-color: var(--content-tertiary);
+  text-underline-offset: 2px;
+}
+
+.rt-code {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.85em;
+  padding: 0.2em 0.4em;
+  border-radius: var(--radius-4, 4px);
+  background: var(--bg-muted);
+  color: var(--red-100);
+}
+
+[data-display-mode="dark"] .rt-code { color: var(--red-50); }
+
+/* ── Editor ───────────────────────────────────────────────────────────── */
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-12);
+}
+
+fieldset.field {
+  border: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.field-label {
+  padding: 0;
+  font-size: var(--text-body-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--content-tertiary);
+}
+
+.field-note {
+  margin: 0;
+  font-size: var(--text-body-xs);
+  color: var(--content-tertiary);
+}
+
+.field-input {
+  width: 100%;
+  font: inherit;
+  font-size: var(--text-body-sm);
+  color: var(--content-primary);
+  background: var(--bg-base);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-6);
+  padding: var(--spacing-6) var(--spacing-8);
+}
+
+.field-input:focus-visible {
+  outline: 2px solid var(--border-interactive-primary);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.field-input:disabled {
+  opacity: 0.6;
+}
+
+.field-textarea {
+  resize: vertical;
+  min-height: var(--spacing-64);
+  line-height: var(--text-body-sm--line-height);
+}
+
+.icon-row,
+.colour-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-4);
+}
+
+.icon-input {
+  width: var(--spacing-64);
+  text-align: center;
+  font-size: var(--text-body);
+}
+
+.icon-choice,
+.colour-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--spacing-28);
+  height: var(--spacing-28);
+  padding: 0;
+  font: inherit;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-6);
+  cursor: pointer;
+}
+
+/*
+ * A background swatch takes its fill from its c-*_background class, which is
+ * declared earlier in the file, so only the plain swatches get the base fill.
+ */
+.colour-chip:not([class*="_background"]) {
+  background: var(--bg-base);
+}
+
+.colour-chip[class*="_background"] {
+  color: var(--content-primary);
+}
+
+.icon-choice {
+  font-size: var(--text-body);
+  border-color: transparent;
+  background: transparent;
+}
+
+.icon-choice:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.colour-chip {
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.colour-row-label {
+  min-width: var(--spacing-80, 80px);
+  font-size: var(--text-body-xs);
+  color: var(--content-secondary);
+}
+
+.icon-choice.is-selected,
+.colour-chip.is-selected {
+  outline: 2px solid var(--border-interactive-primary);
+  outline-offset: 1px;
+}
+
+.icon-choice:focus-visible,
+.colour-chip:focus-visible {
+  outline: 2px solid var(--border-interactive-primary);
+  outline-offset: 1px;
+}
+
+.editor-actions {
+  display: flex;
+  gap: var(--spacing-6);
+}
+
+.ghost-button {
+  font: inherit;
+  font-size: var(--text-body-sm);
+  border-radius: var(--radius-6);
+  padding: var(--spacing-4) var(--spacing-10);
+  cursor: pointer;
+  border: 1px solid var(--border-control);
+  background: var(--bg-control);
+  color: var(--content-primary);
+}
+
+.ghost-button:hover:not(:disabled) {
+  background: var(--bg-control-hover);
+}
+
+.primary-button {
+  font: inherit;
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-medium);
+  border: 1px solid transparent;
+  border-radius: var(--radius-6);
+  padding: var(--spacing-4) var(--spacing-12);
+  cursor: pointer;
+  background: var(--bg-interactive-strong);
+  color: var(--content-on-interactive-strong);
+}
+
+.primary-button:hover:not(:disabled) {
+  background: var(--bg-interactive-strong-hover);
+}
+
+/*
+ * Disabled controls dim rather than recolour: in light mode --content-disabled
+ * matches --bg-control, which would leave an empty grey box.
+ */
+.ghost-button:disabled,
+.primary-button:disabled,
+.icon-choice:disabled,
+.colour-chip:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.notice {
+  font-size: var(--text-body-sm);
+  color: var(--content-secondary);
+  padding: var(--spacing-8) var(--spacing-12);
+  border-radius: var(--radius-8);
+  background: var(--bg-muted);
+}
+
+.notice-error {
+  color: var(--content-primary);
+  border-left: 3px solid var(--red-60);
+}

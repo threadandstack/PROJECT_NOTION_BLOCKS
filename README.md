@@ -5,7 +5,7 @@ from. A **custom block** is a small React app that Notion embeds in a page as a
 sandboxed iframe, with live read/write access to data sources the person
 configures when they insert it.
 
-Currently ships one block: **Stepline (vertical)**.
+Currently ships two blocks: **Stepline (vertical)** and **Tilting callout**.
 
 > [!NOTE]
 > Custom blocks are in Notion's **private alpha**. The workspace needs the
@@ -72,6 +72,53 @@ Steps with no Position fall to the end, in a stable order. Moving one assigns
 positions as it goes, so an unordered database sorts itself out the first time
 anything is moved.
 
+## The Tilting callout block
+
+A Notion callout that tilts to follow the cursor. Insert it with `/tilting-callout`.
+
+- **Everything a callout has.** An icon (any emoji, or none), a colour (the same
+  nine text colours and nine background colours Notion offers, plus Default), and
+  formatted text: bold, italic, strikethrough, underline, inline code, coloured
+  spans and links.
+- **Hover to tilt.** The callout turns to face the pointer, up to 7° top to
+  bottom and 4° side to side, with a soft glare under the cursor and a lifted
+  shadow. It eases back to flat when the pointer leaves. Touch doesn't tilt it
+  (there's no hover to follow), and neither does *Reduce motion*.
+- **Editing is a form, not inline typing.** "Edit callout" appears on hover.
+  The form takes the text, icon and colour; the icon and colour preview on the
+  callout as you choose them, and nothing is written until Save. Cancel or
+  Escape leaves it as it was; Ctrl/Cmd+Enter saves.
+- **Formatting uses Notion's Markdown shortcuts** in the text box: `**bold**`,
+  `*italic*`, `~~strikethrough~~`, `` `code` `` and `[link](https://…)`.
+  Underline and text colour have no shortcut, so the block keeps them as long as
+  the words they sit on are unchanged. Apply them in the database row to add
+  them.
+- **Links show but can't be followed.** Custom blocks can't navigate, so a link
+  is underlined with its address as a tooltip.
+
+What it can't do, because a custom block is an iframe rather than a native
+block: hold child blocks (a native callout can nest other blocks inside it), or
+be edited by typing straight into it.
+
+### Where the words live
+
+A custom block has no storage of its own, so every tilting callout keeps its
+content in a row of a **Callouts** database, and finds its row by its own block
+ID. One Callouts database can serve every tilting callout in the workspace.
+Bind the same one each time.
+
+| Slot | Type | What it's for |
+|---|---|---|
+| Text | `title` | The callout's text, with its formatting |
+| Icon | `rich_text` | One emoji; empty for no icon |
+| Colour | `rich_text` | A Notion colour token: `gray_background`, `blue`, `default`… |
+| Block ID | `rich_text` | Links the row to its block. Set by the block; don't edit |
+
+The row is created the first time someone saves the callout, so a callout that
+has only been viewed never writes to Notion. Until then it shows Notion's
+defaults: 💡 on a grey fill. Duplicating a tilting callout gives the copy a new
+block ID, so it starts empty rather than sharing the original's row.
+
 ---
 
 ## Working on it
@@ -91,6 +138,11 @@ declaration, and serves the block with live reload. `data/steps.json` is a sampl
 stepline it binds against — pick **Steps (sample)** in the shell's *Data* panel
 if it auto-binds to the empty generated source instead.
 
+The tilting callout auto-binds to the generated, empty **Callouts** source and
+shows its placeholder. To preview a filled one, add a row to
+`data/worker_callouts.json` with `"block": "dev-shell-block"` (the shell's fixed
+block ID) and restart the shell.
+
 Typecheck and test:
 
 ```bash
@@ -107,6 +159,8 @@ be verified against a real workspace:
 - saving an edit (title, detail or status)
 - changing a status, moving a step, adding a step, removing a step
 - the status picker's menu (it shows a "bind a Status property" note locally)
+- saving a tilting callout, and its formatted text (the shell can't read the
+  row's rich text, so it shows plain text)
 
 Pull a real database into the shell instead if you want realistic rows:
 
@@ -133,7 +187,10 @@ The `--key` is `timeline`, not `stepline`: the declaration key is the stable
 identity every placed block is bound to, so it stays put while the display name
 and slash command carry the block's public name.
 
-Map the five property slots when prompted. To let other workspace members insert
+For the tilting callout, type `/tilting-callout`, or use
+`--key tiltingCallout`.
+
+Map the property slots when prompted. To let other workspace members insert
 the block, share the worker with **Can connect** access.
 
 `workers.json` (gitignored) pins the worker to a workspace and worker ID. This
@@ -198,6 +255,15 @@ blocks/stepline/
   src/StatusPicker.tsx    status menu
   src/steps.ts            ordering, status→phase mapping, date parsing
   src/index.css           Notion design tokens
+blocks/tilting-callout/
+  src/App.tsx             finds this block's row, saves edits, reads formatted text
+  src/TiltSurface.tsx     pointer tracking; writes the tilt to CSS variables
+  src/tilt.ts             tilt maths (angles, glare position, perspective)
+  src/Editor.tsx          text, icon and colour form
+  src/RichText.tsx        renders formatted runs
+  src/callout.ts          colours, icons, rich text ⇄ Markdown shortcuts
+  src/index.css           callout, tilt and colour styles
 data/steps.json           sample rows for the dev shell
 test/stepline.test.mjs    declaration and data-shaping tests
+test/tilting-callout.test.mjs  formatting round trip, tilt maths, guards
 ```

@@ -66,3 +66,54 @@ worker.customBlock("timeline", {
     },
   },
 })
+
+// ─── Tilting callout ────────────────────────────────────────────────────────
+//
+// A Notion callout (icon, text, colour) that leans towards the pointer on hover.
+//
+// Custom blocks have no per-instance storage, so each callout is a row in a
+// shared Callouts database, found by the block's own ID in the `block`
+// property. One database can hold every tilting callout in the workspace. The
+// row is created on first save, so an untouched block never writes to Notion.
+worker.customBlock("tiltingCallout", {
+  name: "Tilting callout",
+  description:
+    "A callout that tilts to follow the cursor on hover. Icon, colour and formatted text work as in a Notion callout.",
+  icon: { type: "emoji", emoji: "💡" },
+  slashCommand: "tilting-callout",
+  path: "./blocks/tilting-callout",
+  command: "npx vite build",
+  output: "dist",
+  version: 1,
+  dataSources: {
+    callouts: {
+      name: "Callouts",
+      description:
+        "One row per tilting callout. Rows are created by the block; each is matched to its block by Block ID.",
+      icon: { type: "emoji", emoji: "💡" },
+      properties: {
+        text: {
+          name: "Text",
+          description: "The callout's text. Formatting (bold, italic, colour and so on) is kept.",
+          type: "title",
+        },
+        icon: {
+          name: "Icon",
+          description: "A single emoji shown beside the text. Leave empty for no icon.",
+          type: "rich_text",
+        },
+        colour: {
+          name: "Colour",
+          description:
+            "A Notion colour, such as gray_background, blue_background or red. Plain hues colour the text; _background hues fill the callout.",
+          type: "rich_text",
+        },
+        block: {
+          name: "Block ID",
+          description: "Set by the block to link the row to the callout it belongs to. Don't edit.",
+          type: "rich_text",
+        },
+      },
+    },
+  },
+})
