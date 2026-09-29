@@ -80,11 +80,12 @@ A Notion callout that tilts to follow the cursor. Insert it with `/tilting-callo
   nine text colours and nine background colours Notion offers, plus Default), and
   formatted text: bold, italic, strikethrough, underline, inline code, coloured
   spans and links.
-- **Hover to tilt.** The callout turns to face the pointer, up to 7° top to
-  bottom and 4° side to side, with a soft glare under the cursor and a lifted
-  shadow. It eases back to flat when the pointer leaves. Touch doesn't tilt it
-  (there's no hover to follow), and neither does *Reduce motion*.
-- **Editing is a form, not inline typing.** "Edit callout" appears on hover.
+- **Hover to tilt.** The callout turns to face the pointer, up to 8° side to
+  side and 6° top to bottom (the brand book's Tilt3D limits), with a soft glare
+  under the cursor and a lifted shadow. It eases back to flat when the pointer
+  leaves. Touch doesn't tilt it (there's no hover to follow), and neither does
+  *Reduce motion*.
+- **Edit through a form.** "Edit callout" appears on hover.
   The form takes the text, icon and colour; the icon and colour preview on the
   callout as you choose them, and nothing is written until Save. Cancel or
   Escape leaves it as it was; Ctrl/Cmd+Enter saves.
@@ -117,7 +118,7 @@ Bind the same one each time.
 The row is created the first time someone saves the callout, so a callout that
 has only been viewed never writes to Notion. Until then it shows Notion's
 defaults: 💡 on a grey fill. Duplicating a tilting callout gives the copy a new
-block ID, so it starts empty rather than sharing the original's row.
+block ID, so the copy starts empty and gets a row of its own when saved.
 
 ---
 

@@ -205,6 +205,11 @@ test("writes rich text items Notion accepts, splitting long runs", () => {
 
 // ─── Tilt ───────────────────────────────────────────────────────────────────
 
+test("stays within the brand's Tilt3D limits", () => {
+  assert.equal(MAX_TILT_Y, 8, "horizontal tilt")
+  assert.equal(MAX_TILT_X, 6, "vertical tilt")
+})
+
 test("lies flat with the pointer in the centre", () => {
   const tilt = tiltFor(300, 50, 600, 100)
   assert.equal(tilt.rotateX, 0)
@@ -235,7 +240,7 @@ test("clamps a pointer outside the callout and survives a zero size", () => {
 
 test("deepens the perspective for wide callouts", () => {
   assert.equal(tiltFor(0, 0, 200, 50).perspective, 800)
-  assert.equal(tiltFor(0, 0, 700, 50).perspective, 1400)
+  assert.equal(tiltFor(0, 0, 700, 50).perspective, 2100)
 })
 
 // ─── Sandbox and theme guards ───────────────────────────────────────────────

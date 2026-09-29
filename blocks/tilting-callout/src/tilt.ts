@@ -6,19 +6,22 @@
  * cursor to sell the angle.
  */
 
-/** Maximum lean around the horizontal axis (pointer moving up and down). */
-export const MAX_TILT_X = 7
-
 /**
- * Maximum lean around the vertical axis (pointer moving left and right). Kept
- * smaller than the X tilt because a callout is usually far wider than it is
- * tall, so the same angle throws its side edges much further out of the frame.
+ * The angles follow the Thread & Stack brand book's Tilt3D spec: at most 8°
+ * of horizontal tilt and 6° of vertical, with no skew or parallax.
  */
-export const MAX_TILT_Y = 4
+
+/** Maximum vertical tilt: lean around the horizontal axis as the pointer moves up and down. */
+export const MAX_TILT_X = 6
+
+/** Maximum horizontal tilt: lean around the vertical axis as the pointer moves left and right. */
+export const MAX_TILT_Y = 8
 
 /**
- * Perspective scales with width so a wide callout does not balloon past the
- * iframe's edges when it tilts. Never shallower than this.
+ * Perspective scales with width. A callout is usually far wider than it is
+ * tall, so at a fixed perspective 8° of horizontal tilt would swing its near
+ * edge well past the iframe and get clipped. Three times the width keeps the
+ * overhang inside the block's side padding. Never shallower than this.
  */
 const MIN_PERSPECTIVE = 800
 
@@ -66,6 +69,6 @@ export function tiltFor(x: number, y: number, width: number, height: number): Ti
     rotateY: round(-dx * MAX_TILT_Y),
     glareX: round(((dx + 1) / 2) * 100),
     glareY: round(((dy + 1) / 2) * 100),
-    perspective: Math.max(MIN_PERSPECTIVE, Math.round(width * 2)),
+    perspective: Math.max(MIN_PERSPECTIVE, Math.round(width * 3)),
   }
 }
