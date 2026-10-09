@@ -7,6 +7,10 @@
       "name": "Text",
       "type": "title"
     },
+    "formatted": {
+      "name": "Formatted text",
+      "type": "rich_text"
+    },
     "icon": {
       "name": "Icon",
       "type": "rich_text"

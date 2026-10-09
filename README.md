@@ -85,21 +85,22 @@ A Notion callout that tilts to follow the cursor. Insert it with `/tilting-callo
   under the cursor and a lifted shadow. It eases back to flat when the pointer
   leaves. Touch doesn't tilt it (there's no hover to follow), and neither does
   *Reduce motion*.
-- **Edit through a form.** "Edit callout" appears on hover.
-  The form takes the text, icon and colour; the icon and colour preview on the
-  callout as you choose them, and nothing is written until Save. Cancel or
-  Escape leaves it as it was; Ctrl/Cmd+Enter saves.
-- **Formatting uses Notion's Markdown shortcuts** in the text box: `**bold**`,
-  `*italic*`, `~~strikethrough~~`, `` `code` `` and `[link](https://…)`.
-  Underline and text colour have no shortcut, so the block keeps them as long as
-  the words they sit on are unchanged. Apply them in the database row to add
-  them.
+- **Edits like a Notion callout.** Click the text and type. Select text and a
+  menu drawn after Notion's own appears: text and background colour, **bold**,
+  *italic*, underline, clear formatting, link, ~~strikethrough~~ and `code`,
+  with Notion's shortcuts (⌘B, ⌘I, ⌘U, ⌘⇧S, ⌘E, ⌘K). ⌘Z undoes. The text
+  saves when you click away (or press Esc), as one write.
+- **Click the icon** for the icon and colour menu: a grid of common emoji, a
+  field to type or paste any other, Remove, and the callout's colour. With no
+  icon, an "Add icon" smiley appears in its place while you're editing the text.
+  Nothing appears on hover, so hovering is only ever the tilt.
 - **Links show but can't be followed.** Custom blocks can't navigate, so a link
   is underlined with its address as a tooltip.
 
 What it can't do, because a custom block is an iframe rather than a native
 block: hold child blocks (a native callout can nest other blocks inside it), or
-be edited by typing straight into it.
+use Notion's own menus (the bridge offers no way to open them, so the block
+draws its own).
 
 ### Where the words live
 
@@ -110,10 +111,17 @@ Bind the same one each time.
 
 | Slot | Type | What it's for |
 |---|---|---|
-| Text | `title` | The callout's text, with its formatting |
+| Text | `title` | The callout's words, as plain text |
+| Formatted text | `rich_text` | The same words with their formatting, as JSON. Set by the block; hide it, don't edit |
 | Icon | `rich_text` | One emoji; empty for no icon |
 | Colour | `rich_text` | A Notion colour token: `gray_background`, `blue`, `default`… |
 | Block ID | `rich_text` | Links the row to its block. Set by the block; don't edit |
+
+Formatting lives in its own field because Notion's custom block bridge drops
+title formatting in both directions: bold or a link written to Text is stored
+plain, and formatting added in Notion never reaches the block. If Text is
+edited straight in the database, the block shows the new words, unformatted,
+rather than stale formatting.
 
 The row is created the first time someone saves the callout, so a callout that
 has only been viewed never writes to Notion. Until then it shows Notion's

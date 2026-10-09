@@ -94,8 +94,16 @@ worker.customBlock("tiltingCallout", {
       properties: {
         text: {
           name: "Text",
-          description: "The callout's text. Formatting (bold, italic, colour and so on) is kept.",
+          description: "The callout's words, as plain text.",
           type: "title",
+        },
+        // Notion's custom block bridge drops title formatting in both
+        // directions, so the formatted text travels here as JSON instead.
+        formatted: {
+          name: "Formatted text",
+          description:
+            "Set by the block: the callout's text with its formatting (bold, links, colour). Safe to hide; don't edit.",
+          type: "rich_text",
         },
         icon: {
           name: "Icon",

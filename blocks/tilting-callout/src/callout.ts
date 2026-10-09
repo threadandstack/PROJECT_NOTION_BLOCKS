@@ -87,9 +87,12 @@ export type Segment = {
   href?: string
 }
 
-type Style = Omit<Segment, "text">
+export type Style = Omit<Segment, "text">
 
-const PLAIN: Style = {
+/** The marks the toolbar toggles on and off. */
+export type Mark = "bold" | "italic" | "underline" | "strikethrough" | "code"
+
+export const PLAIN: Style = {
   bold: false,
   italic: false,
   strikethrough: false,
@@ -113,8 +116,13 @@ function sameStyle(a: Style, b: Style): boolean {
   )
 }
 
+function styleOf(segment: Segment): Style {
+  const { text: _text, ...style } = segment
+  return style
+}
+
 /** Join neighbouring runs that format identically, and drop empty ones. */
-function merge(segments: Segment[]): Segment[] {
+export function merge(segments: Segment[]): Segment[] {
   const merged: Segment[] = []
   for (const segment of segments) {
     if (!segment.text) continue
@@ -136,223 +144,200 @@ export function fromPlainText(text: string): Segment[] {
   return merge([{ ...PLAIN, text }])
 }
 
-function record(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : {}
+export function sameSegments(a: Segment[], b: Segment[]): boolean {
+  return toStored(a) === toStored(b)
+}
+
+type RichTextItem = {
+  type: "text"
+  text: { content: string; link?: { url: string } }
+  annotations?: Partial<{
+    bold: true
+    italic: true
+    strikethrough: true
+    underline: true
+    code: true
+    color: string
+  }>
 }
 
 /**
- * Read Notion's rich text items into runs. The SDK types each item as an open
- * record, so every field is checked rather than trusted. Mentions and equations
- * keep their `plain_text`, which is how Notion itself renders them as text.
+ * Write runs as Notion rich text items, splitting any that are too long.
+ *
+ * Only what is set is sent. Notion's public API takes `link: null` and a full
+ * set of `false` annotations, but the custom block host does not: it drops the
+ * whole write without answering, so the save just times out. An absent field
+ * means "none" to both, so leaving them out is always safe.
  */
-export function fromNotionRichText(items: readonly unknown[]): Segment[] {
-  return merge(
-    items.map((raw) => {
-      const item = record(raw)
-      const annotations = record(item.annotations)
-      const text = record(item.text)
-      const link = record(text.link)
-      const content =
-        typeof item.plain_text === "string"
-          ? item.plain_text
-          : typeof text.content === "string"
-            ? text.content
-            : ""
-      const href =
-        typeof item.href === "string"
-          ? item.href
-          : typeof link.url === "string"
-            ? link.url
-            : undefined
-
-      return {
-        text: content,
-        bold: annotations.bold === true,
-        italic: annotations.italic === true,
-        strikethrough: annotations.strikethrough === true,
-        underline: annotations.underline === true,
-        code: annotations.code === true,
-        colour: typeof annotations.color === "string" ? annotations.color : "default",
-        ...(href ? { href } : {}),
-      }
-    })
-  )
-}
-
-/** Write runs back as Notion rich text items, splitting any that are too long. */
-export function toNotionRichText(segments: Segment[]) {
+export function toNotionRichText(segments: Segment[]): RichTextItem[] {
   return merge(segments).flatMap((segment) => {
+    const annotations: NonNullable<RichTextItem["annotations"]> = {}
+    if (segment.bold) annotations.bold = true
+    if (segment.italic) annotations.italic = true
+    if (segment.strikethrough) annotations.strikethrough = true
+    if (segment.underline) annotations.underline = true
+    if (segment.code) annotations.code = true
+    if (segment.colour !== "default") annotations.color = segment.colour
+
     const chunks: string[] = []
     for (let start = 0; start < segment.text.length; start += MAX_ITEM_LENGTH) {
       chunks.push(segment.text.slice(start, start + MAX_ITEM_LENGTH))
     }
     return chunks.map((content) => ({
       type: "text" as const,
-      text: {
-        content,
-        link: segment.href ? { url: segment.href } : null,
-      },
-      annotations: {
-        bold: segment.bold,
-        italic: segment.italic,
-        strikethrough: segment.strikethrough,
-        underline: segment.underline,
-        code: segment.code,
-        color: segment.colour,
-      },
+      text: segment.href ? { content, link: { url: segment.href } } : { content },
+      ...(Object.keys(annotations).length > 0 ? { annotations } : {}),
     }))
   })
 }
 
-// ─── The editor's text format ──────────────────────────────────────────────
+// ─── Editing ───────────────────────────────────────────────────────────────
 //
-// The block edits in a textarea, so formatting travels as the same Markdown
-// shortcuts Notion accepts while typing: **bold**, *italic*, ~~strikethrough~~,
-// `code` and [links](https://…). Underline and text colour have no shortcut, so
-// they are kept whenever the words they sit on come back unchanged.
+// The editor works on character offsets into the plain text (UTF-16 units, the
+// same units the browser's selection uses), so every edit is a pure function
+// from runs to runs and can be tested without a browser.
 
-const MARKERS = [
-  { token: "**", style: "bold" },
-  { token: "~~", style: "strikethrough" },
-  { token: "*", style: "italic" },
-  { token: "_", style: "italic" },
-] as const
+type Char = { char: string; style: Style }
 
-type Toggle = (typeof MARKERS)[number]["style"]
-
-/** Markers must hug the text they wrap, so edge spaces are moved outside. */
-function wrap(text: string, open: string, close = open): string {
-  const match = /^(\s*)([\s\S]*?)(\s*)$/.exec(text)
-  if (!match || !match[2]) return text
-  return `${match[1]}${open}${match[2]}${close}${match[3]}`
-}
-
-function escapeMarkdown(text: string): string {
-  return text.replace(/([\\*_~`[\]])/g, "\\$1")
-}
-
-export function toMarkdown(segments: Segment[]): string {
-  return merge(segments)
-    .map((segment) => {
-      let text = segment.code
-        ? wrap(segment.text.replace(/`/g, "'"), "`")
-        : escapeMarkdown(segment.text)
-      if (segment.italic) text = wrap(text, "*")
-      if (segment.bold) text = wrap(text, "**")
-      if (segment.strikethrough) text = wrap(text, "~~")
-      if (segment.href) text = `[${text}](${segment.href})`
-      return text
-    })
-    .join("")
-}
-
-/**
- * Parse the editor's text back into runs. Deliberately forgiving: a marker with
- * no partner later on is kept as a literal character rather than swallowing the
- * rest of the callout, and `\` escapes any marker.
- */
-export function fromMarkdown(source: string, base: Style = PLAIN): Segment[] {
-  const segments: Segment[] = []
-  const style: Style = { ...base }
-  let buffer = ""
-  let index = 0
-
-  const flush = () => {
-    if (buffer) segments.push({ ...style, text: buffer })
-    buffer = ""
+function explode(segments: Segment[]): Char[] {
+  const chars: Char[] = []
+  for (const segment of segments) {
+    const style = styleOf(segment)
+    for (let i = 0; i < segment.text.length; i++) chars.push({ char: segment.text[i], style })
   }
-
-  while (index < source.length) {
-    const char = source[index]
-
-    if (char === "\\" && index + 1 < source.length) {
-      buffer += source[index + 1]
-      index += 2
-      continue
-    }
-
-    if (char === "`") {
-      const close = source.indexOf("`", index + 1)
-      if (close > index + 1) {
-        flush()
-        segments.push({ ...style, code: true, text: source.slice(index + 1, close) })
-        index = close + 1
-        continue
-      }
-    }
-
-    if (char === "[") {
-      const link = /^\[((?:\\.|[^\]\\])+)\]\(([^)\s]+)\)/.exec(source.slice(index))
-      if (link) {
-        flush()
-        segments.push(...fromMarkdown(link[1], { ...style, href: link[2] }))
-        index += link[0].length
-        continue
-      }
-    }
-
-    const marker = MARKERS.find(({ token }) => source.startsWith(token, index))
-    if (marker) {
-      const on = style[marker.style as Toggle]
-      const rest = source.slice(index + marker.token.length)
-      // Opening needs a partner later on and text hugging the marker; closing
-      // needs the marker to hug the text before it.
-      // Underscores inside a word (snake_case) are never markers, as in Notion.
-      const inWord =
-        marker.token === "_" &&
-        (/\w/.test(source[index - 1] ?? "") && (!on || /\w/.test(rest[0] ?? "")))
-      const opens = !on && !inWord && /^\S/.test(rest) && hasCloser(rest, marker.token)
-      const closes = on && !inWord && /\S$/.test(buffer || segments.at(-1)?.text || "")
-      if (opens || closes) {
-        flush()
-        style[marker.style as Toggle] = !on
-        index += marker.token.length
-        continue
-      }
-    }
-
-    buffer += char
-    index += 1
-  }
-
-  flush()
-  return merge(segments)
+  return chars
 }
 
-function hasCloser(rest: string, token: string): boolean {
-  for (let at = rest.indexOf(token); at !== -1; at = rest.indexOf(token, at + 1)) {
-    if (at > 0 && rest[at - 1] !== "\\" && /\S/.test(rest[at - 1])) return true
-  }
-  return false
+function implode(chars: Char[]): Segment[] {
+  return merge(chars.map(({ char, style }) => ({ ...style, text: char })))
 }
 
-/**
- * Carry underline and colour, which the editor cannot express, across an edit.
- * A run whose exact words survive at the same position keeps them.
- */
-export function carryHiddenStyles(before: Segment[], after: Segment[]): Segment[] {
-  const hidden = before.filter((segment) => segment.underline || segment.colour !== "default")
-  if (hidden.length === 0) return after
-
-  const beforeText = plainText(before)
-  const afterText = plainText(after)
-  if (beforeText !== afterText) return after
-
-  // The words are unchanged, so rebuild from the original runs with the new
-  // editor-visible formatting laid over them character by character.
-  const visibleAt = (segments: Segment[]) =>
-    segments.flatMap((segment) => Array.from(segment.text, () => segment))
-  const oldAt = visibleAt(before)
-  const newAt = visibleAt(after)
-
-  return merge(
-    Array.from(afterText, (char, i) => ({
-      ...newAt[i],
-      text: char,
-      underline: oldAt[i]?.underline ?? false,
-      colour: oldAt[i]?.colour ?? "default",
-    }))
+/** Restyle the characters in [start, end). */
+export function applyStyle(
+  segments: Segment[],
+  start: number,
+  end: number,
+  patch: Partial<Style>
+): Segment[] {
+  return implode(
+    explode(segments).map((entry, index) =>
+      index >= start && index < end ? { char: entry.char, style: { ...entry.style, ...patch } } : entry
+    )
   )
+}
+
+/** Whether every character in [start, end) carries the mark. */
+export function hasMark(segments: Segment[], start: number, end: number, mark: Mark): boolean {
+  const chars = explode(segments).slice(start, end)
+  return chars.length > 0 && chars.every((entry) => entry.style[mark])
+}
+
+/** The value shared by every character in [start, end), or undefined if they differ. */
+export function sharedValue<K extends "colour" | "href">(
+  segments: Segment[],
+  start: number,
+  end: number,
+  key: K
+): Style[K] | undefined {
+  const chars = explode(segments).slice(start, end)
+  if (chars.length === 0) return undefined
+  const first = chars[0].style[key]
+  return chars.every((entry) => entry.style[key] === first) ? first : undefined
+}
+
+/** Turn a mark on across the range, or off if the whole range already has it. */
+export function toggleMark(segments: Segment[], start: number, end: number, mark: Mark): Segment[] {
+  return applyStyle(segments, start, end, { [mark]: !hasMark(segments, start, end, mark) })
+}
+
+/** Strip every mark and colour from the range. Links stay, as in Notion. */
+export function clearFormatting(segments: Segment[], start: number, end: number): Segment[] {
+  const { colour, bold, italic, strikethrough, underline, code } = PLAIN
+  return applyStyle(segments, start, end, { colour, bold, italic, strikethrough, underline, code })
+}
+
+/**
+ * Replace [start, end) with typed text, formatted as in Notion: typing over a
+ * selection keeps the selection's formatting, and typing at a caret continues
+ * the character before it, except that a link or inline code does not grow
+ * past its end.
+ */
+export function replaceRange(segments: Segment[], start: number, end: number, text: string): Segment[] {
+  const chars = explode(segments)
+  const before = (start < end ? chars[start] : chars[start - 1])?.style ?? chars[end]?.style ?? PLAIN
+  const continues = chars[end]?.style
+  const style: Style = { ...before }
+  if (style.href && continues?.href !== style.href) delete style.href
+  if (style.code && !continues?.code) style.code = false
+
+  const normalised = text.replace(/\r\n?/g, "\n")
+  const typed: Char[] = []
+  for (let i = 0; i < normalised.length; i++) typed.push({ char: normalised[i], style })
+  return implode([...chars.slice(0, start), ...typed, ...chars.slice(end)])
+}
+
+// ─── Storage ───────────────────────────────────────────────────────────────
+//
+// Notion's custom block bridge flattens title formatting in both directions:
+// bold or a link written to Text is stored as plain text, and formatting added
+// in Notion never reaches the block. So the runs are also kept, as compact
+// JSON, in a plain "Formatted text" field the bridge carries faithfully. Text
+// keeps the plain words so the database still reads well.
+
+type StoredRun = {
+  t: string
+  b?: 1
+  i?: 1
+  s?: 1
+  u?: 1
+  c?: 1
+  k?: string
+  h?: string
+}
+
+export function toStored(segments: Segment[]): string {
+  const runs = merge(segments).map((segment) => {
+    const run: StoredRun = { t: segment.text }
+    if (segment.bold) run.b = 1
+    if (segment.italic) run.i = 1
+    if (segment.strikethrough) run.s = 1
+    if (segment.underline) run.u = 1
+    if (segment.code) run.c = 1
+    if (segment.colour !== "default") run.k = segment.colour
+    if (segment.href) run.h = segment.href
+    return run
+  })
+  return JSON.stringify({ v: 1, r: runs })
+}
+
+/** Read stored runs, or null if the value is missing or not ours. */
+export function fromStored(value: unknown): Segment[] | null {
+  if (typeof value !== "string" || !value.trim()) return null
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(value)
+  } catch {
+    return null
+  }
+  const runs = (parsed as { v?: unknown; r?: unknown })?.r
+  if ((parsed as { v?: unknown })?.v !== 1 || !Array.isArray(runs)) return null
+
+  const segments: Segment[] = []
+  for (const raw of runs) {
+    const run = raw as Partial<StoredRun>
+    if (typeof run?.t !== "string") return null
+    segments.push({
+      text: run.t,
+      bold: run.b === 1,
+      italic: run.i === 1,
+      strikethrough: run.s === 1,
+      underline: run.u === 1,
+      code: run.c === 1,
+      colour: typeof run.k === "string" ? run.k : "default",
+      ...(typeof run.h === "string" ? { href: run.h } : {}),
+    })
+  }
+  return merge(segments)
 }
 
 // ─── Rows ──────────────────────────────────────────────────────────────────
@@ -360,21 +345,26 @@ export function carryHiddenStyles(before: Segment[], after: Segment[]): Segment[
 /** A callout as the block renders it. */
 export type Callout = {
   row?: NotionDataSourcePage
-  text: string
+  segments: Segment[]
   icon: string
   colour: CalloutColour
 }
 
 /**
- * Read a bound row. A row with an empty Icon means "no icon" only once it has
- * been saved from the block; a fresh one (no row yet) shows Notion's default.
+ * Read a bound row. The formatted runs are used only while their words match
+ * the Text field, so an edit made straight in the database still shows (plain)
+ * rather than being hidden behind stale formatting. A row with an empty Icon
+ * means "no icon" only once it has been saved; a fresh callout shows Notion's
+ * default.
  */
 export function toCallout(row: NotionDataSourcePage | undefined): Callout {
-  if (!row) return { text: "", icon: DEFAULT_ICON, colour: DEFAULT_COLOUR }
+  if (!row) return { segments: [], icon: DEFAULT_ICON, colour: DEFAULT_COLOUR }
   const values = row.propertiesByKey
+  const text = typeof values.text === "string" ? values.text : ""
+  const formatted = fromStored(values.formatted)
   return {
     row,
-    text: typeof values.text === "string" ? values.text : "",
+    segments: formatted && plainText(formatted) === text ? formatted : fromPlainText(text),
     icon: normaliseIcon(values.icon),
     colour: normaliseColour(values.colour),
   }

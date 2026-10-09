@@ -16,35 +16,12 @@
  * handle Notion draws over the lower edge of the iframe, which swallows clicks.
  */
 .callout-root {
+  box-sizing: border-box;
   position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--spacing-12);
   padding: var(--spacing-8) var(--spacing-8) var(--spacing-24);
-}
-
-/*
- * The edit control appears on hover, so a callout at rest is only the callout.
- * `focus-within` keeps it reachable from the keyboard.
- */
-.callout-toolbar {
-  position: absolute;
-  top: 0;
-  right: var(--spacing-8);
-  z-index: 2;
-  opacity: 0;
-  transition: opacity 120ms ease;
-}
-
-.callout-root:hover .callout-toolbar,
-.callout-root:focus-within .callout-toolbar {
-  opacity: 1;
-}
-
-@media (hover: none) {
-  .callout-toolbar {
-    opacity: 1;
-  }
 }
 
 /* ── The tilt ─────────────────────────────────────────────────────────── */
@@ -142,13 +119,38 @@
   border-color: var(--border-primary);
 }
 
+/*
+ * Clicking the icon opens its menu, as in a Notion callout. It is a bare button
+ * so it looks exactly like the icon; only the pointer says it can be clicked,
+ * so hovering the callout stays purely the tilt.
+ */
 .callout-icon {
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: var(--spacing-24);
+  height: calc(var(--text-body) * 1.5);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-4);
+  background: none;
+  color: inherit;
+  font: inherit;
   font-size: 1.3em;
-  line-height: var(--text-body--line-height, 1.5);
-  text-align: center;
+  line-height: 1;
   user-select: none;
+  cursor: pointer;
+}
+
+.callout-icon:focus-visible {
+  outline: 2px solid var(--border-interactive-primary);
+  outline-offset: 2px;
+}
+
+/* "Add icon" only shows while editing, faint, like Notion's page affordance. */
+.callout-icon.is-placeholder {
+  color: var(--content-tertiary);
 }
 
 .callout-text {
@@ -156,12 +158,21 @@
   min-width: 0;
   font-size: var(--text-body);
   line-height: var(--text-body--line-height, 1.5);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
 
-.callout-placeholder {
+.callout-editable {
+  min-height: 1.5em;
+  outline: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  cursor: text;
+  caret-color: var(--content-primary);
+}
+
+.callout-editable:empty::before {
+  content: attr(data-placeholder);
   color: var(--content-tertiary);
+  pointer-events: none;
 }
 
 /* ── Colours ──────────────────────────────────────────────────────────── */
@@ -238,186 +249,228 @@
 
 [data-display-mode="dark"] .rt-code { color: var(--red-50); }
 
-/* ── Editor ───────────────────────────────────────────────────────────── */
+/* ── Menus ────────────────────────────────────────────────────────────── */
 
-.editor {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-12);
-}
-
-fieldset.field {
-  border: none;
-  margin: 0;
-  padding: 0;
-  min-width: 0;
-}
-
-.field {
+/*
+ * Drawn after Notion's own popovers: a white card with a hairline outline and
+ * soft shadow, 32px icon buttons, and active marks in blue. Menus sit outside
+ * the tilting body so they never lean with it.
+ */
+.format-menu {
+  position: absolute;
+  z-index: 10;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: var(--spacing-4);
-}
-
-.field-label {
-  padding: 0;
-  font-size: var(--text-body-xs);
-  font-weight: var(--font-weight-medium);
-  color: var(--content-tertiary);
-}
-
-.field-note {
-  margin: 0;
-  font-size: var(--text-body-xs);
-  color: var(--content-tertiary);
-}
-
-.field-input {
-  width: 100%;
-  font: inherit;
-  font-size: var(--text-body-sm);
+  padding: var(--spacing-6);
+  border-radius: var(--radius-10);
+  background: var(--bg-elevated);
   color: var(--content-primary);
-  background: var(--bg-base);
-  border: 1px solid var(--border-control);
-  border-radius: var(--radius-6);
-  padding: var(--spacing-6) var(--spacing-8);
+  box-shadow: var(--shadow-lg-outline);
+  font-size: var(--text-body-sm);
 }
 
-.field-input:focus-visible {
-  outline: 2px solid var(--border-interactive-primary);
-  outline-offset: -1px;
-  border-color: transparent;
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(5, var(--spacing-32));
+  gap: var(--spacing-2);
 }
 
-.field-input:disabled {
-  opacity: 0.6;
-}
-
-.field-textarea {
-  resize: vertical;
-  min-height: var(--spacing-64);
-  line-height: var(--text-body-sm--line-height);
-}
-
-.icon-row,
-.colour-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--spacing-4);
-}
-
-.icon-input {
-  width: var(--spacing-64);
-  text-align: center;
-  font-size: var(--text-body);
-}
-
-.icon-choice,
-.colour-chip {
+.menu-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--spacing-28);
-  height: var(--spacing-28);
+  width: var(--spacing-32);
+  height: var(--spacing-32);
   padding: 0;
-  font: inherit;
-  border: 1px solid var(--border-control);
+  border: 0;
   border-radius: var(--radius-6);
+  background: none;
+  color: var(--content-primary);
+  font: inherit;
   cursor: pointer;
 }
 
-/*
- * A background swatch takes its fill from its c-*_background class, which is
- * declared earlier in the file, so only the plain swatches get the base fill.
- */
-.colour-chip:not([class*="_background"]) {
-  background: var(--bg-base);
-}
-
-.colour-chip[class*="_background"] {
-  color: var(--content-primary);
-}
-
-.icon-choice {
-  font-size: var(--text-body);
-  border-color: transparent;
-  background: transparent;
-}
-
-.icon-choice:hover:not(:disabled) {
+.menu-button:hover {
   background: var(--bg-hover);
 }
 
-.colour-chip {
+/*
+ * Notion marks an active format in its accent blue, the same in both themes.
+ * --content-interactive-primary follows the page theme, which is grey here.
+ */
+.menu-button.is-active {
+  color: #2383e2;
+}
+
+.menu-button:focus-visible,
+.menu-row-button:focus-visible,
+.swatch:focus-visible,
+.emoji-choice:focus-visible {
+  outline: 2px solid var(--border-interactive-primary);
+  outline-offset: -2px;
+}
+
+.glyph {
+  font-size: 17px;
+  line-height: 1;
+}
+
+.glyph-bold { font-weight: var(--font-weight-bold); }
+.glyph-italic { font-style: italic; font-family: Georgia, "Times New Roman", serif; }
+.glyph-underline { text-decoration: underline; text-underline-offset: 3px; }
+.glyph-strike { text-decoration: line-through; }
+
+/* The colour button: an "A" in an outlined square, showing the colour in use. */
+.colour-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-4);
   font-size: var(--text-body-sm);
   font-weight: var(--font-weight-medium);
 }
 
-.colour-row-label {
-  min-width: var(--spacing-80, 80px);
+.menu-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+  padding-top: var(--spacing-6);
+  border-top: 1px solid var(--border-primary);
+}
+
+.menu-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.menu-label {
+  padding: 0 var(--spacing-2);
   font-size: var(--text-body-xs);
+  font-weight: var(--font-weight-medium);
   color: var(--content-secondary);
 }
 
-.icon-choice.is-selected,
-.colour-chip.is-selected {
-  outline: 2px solid var(--border-interactive-primary);
-  outline-offset: 1px;
-}
-
-.icon-choice:focus-visible,
-.colour-chip:focus-visible {
-  outline: 2px solid var(--border-interactive-primary);
-  outline-offset: 1px;
-}
-
-.editor-actions {
+.swatch-row {
   display: flex;
-  gap: var(--spacing-6);
+  gap: var(--spacing-4);
 }
 
-.ghost-button {
-  font: inherit;
-  font-size: var(--text-body-sm);
-  border-radius: var(--radius-6);
-  padding: var(--spacing-4) var(--spacing-10);
-  cursor: pointer;
-  border: 1px solid var(--border-control);
-  background: var(--bg-control);
-  color: var(--content-primary);
-}
-
-.ghost-button:hover:not(:disabled) {
-  background: var(--bg-control-hover);
-}
-
-.primary-button {
+.swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--spacing-24);
+  height: var(--spacing-24);
+  padding: 0;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-4);
   font: inherit;
   font-size: var(--text-body-sm);
   font-weight: var(--font-weight-medium);
-  border: 1px solid transparent;
-  border-radius: var(--radius-6);
-  padding: var(--spacing-4) var(--spacing-12);
   cursor: pointer;
-  background: var(--bg-interactive-strong);
-  color: var(--content-on-interactive-strong);
 }
 
-.primary-button:hover:not(:disabled) {
-  background: var(--bg-interactive-strong-hover);
+/* Background swatches take their fill from c-*_background, declared above. */
+.swatch:not([class*="_background"]) {
+  background: var(--bg-base);
 }
 
-/*
- * Disabled controls dim rather than recolour: in light mode --content-disabled
- * matches --bg-control, which would leave an empty grey box.
- */
-.ghost-button:disabled,
-.primary-button:disabled,
-.icon-choice:disabled,
-.colour-chip:disabled {
-  opacity: 0.45;
-  cursor: default;
+.swatch[class*="_background"] {
+  color: var(--content-primary);
+}
+
+.swatch.is-selected,
+.emoji-choice.is-selected {
+  outline: 2px solid var(--border-interactive-primary);
+  outline-offset: 1px;
+}
+
+.menu-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 220px;
+  font: inherit;
+  font-size: var(--text-body-sm);
+  color: var(--content-primary);
+  background: var(--bg-muted);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-6);
+  padding: var(--spacing-4) var(--spacing-8);
+}
+
+.menu-input:focus-visible {
+  outline: 2px solid var(--border-interactive-primary);
+  outline-offset: -1px;
+}
+
+.menu-row-button {
+  align-self: flex-start;
+  padding: var(--spacing-4) var(--spacing-6);
+  border: 0;
+  border-radius: var(--radius-6);
+  background: none;
+  color: var(--content-secondary);
+  font: inherit;
+  font-size: var(--text-body-sm);
+  cursor: pointer;
+}
+
+.menu-row-button:hover {
+  background: var(--bg-hover);
+}
+
+/* ── Icon menu ────────────────────────────────────────────────────────── */
+
+/* Opens just below the icon, inside the callout's own padding. */
+.icon-menu {
+  left: var(--spacing-8);
+  top: var(--spacing-56);
+  gap: var(--spacing-8);
+  width: 300px;
+}
+
+.menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--spacing-28);
+  padding-bottom: var(--spacing-4);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.menu-tab {
+  padding: var(--spacing-4) var(--spacing-2);
+  font-weight: var(--font-weight-medium);
+  box-shadow: inset 0 -2px 0 var(--content-primary);
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: var(--spacing-2);
+}
+
+.emoji-choice {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-4);
+  background: none;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.emoji-choice:hover {
+  background: var(--bg-hover);
 }
 
 .notice {

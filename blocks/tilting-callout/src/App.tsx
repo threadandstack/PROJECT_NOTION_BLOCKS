@@ -3,23 +3,23 @@ import {
   type NotionDataSourcePage,
   type NotionPageId,
   type NotionPagePropertyInputMap,
+  type NotionPagePropertyWriteMap,
 } from "@notionhq/custom-blocks"
 import { useBlockId, useDataSource } from "@notionhq/custom-blocks/react"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
-  carryHiddenStyles,
-  fromMarkdown,
-  fromNotionRichText,
   fromPlainText,
-  plainText,
+  sameSegments,
   toCallout,
-  toMarkdown,
   toNotionRichText,
+  toStored,
+  type CalloutColour,
   type Segment,
 } from "./callout"
-import { Editor, type CalloutEdit } from "./Editor"
-import { RichText } from "./RichText"
+import { IconMenu } from "./IconMenu"
+import { InlineText } from "./InlineText"
 import { TiltSurface } from "./TiltSurface"
+import { usePopoverSpace } from "./usePopoverSpace"
 
 const DATA_SOURCE_KEY = "callouts"
 
@@ -29,129 +29,101 @@ type WriteResult = { status: "success" } | { status: "error"; error: { message: 
 /**
  * How long to wait for the host to answer a write before giving up on it. The
  * bridge never answers a message the host rejects as malformed, so without a
- * deadline one bad write would leave the form disabled for good.
+ * deadline one bad write would leave the block waiting for good.
  */
 const WRITE_TIMEOUT_MS = 10_000
+
+type Look = { segments: Segment[]; icon: string; colour: CalloutColour }
 
 /**
  * One tilting callout.
  *
  * Custom blocks have no storage of their own, so each callout's words, icon and
  * colour live in a row of the bound Callouts database, found by this block's ID.
- * Every tilting callout in the workspace can share that one database. A block
- * with no row yet shows an empty callout, and its row is created the first time
- * someone saves it, so merely viewing a page never writes to Notion.
+ * A block with no row yet shows an empty callout, and its row is created the
+ * first time someone edits it, so merely viewing a page never writes to Notion.
+ *
+ * It works like a Notion callout: click the text to type, select text to format
+ * it, click the icon to change the icon or colour. Hovering only ever tilts it.
  */
 export function App() {
   const blockId = useBlockId()
-  const [editing, setEditing] = useState(false)
-  const [busy, setBusy] = useState(false)
+  const [container, setContainer] = useState<HTMLElement | null>(null)
+  const [editingText, setEditingText] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [menuNode, setMenuNode] = useState<HTMLDivElement | null>(null)
   const [writeError, setWriteError] = useState<string | null>(null)
-  // Bumped after each save so a formatting-only change, which leaves the plain
-  // text untouched, still re-reads the formatted text.
-  const [revision, setRevision] = useState(0)
-  // The icon and colour being chosen in the editor, shown on the callout before saving.
-  const [preview, setPreview] = useState<Pick<CalloutEdit, "icon" | "colour"> | null>(null)
+  // Changes shown straight away, before Notion confirms them, so the callout
+  // never flicks back to its old look while a save is in flight.
+  const [pending, setPending] = useState<Partial<Look>>({})
+
+  usePopoverSpace(container, menuOpen ? menuNode : null)
 
   // Two people saving a brand new callout at the same moment could each create
   // a row. Fetching a few and picking by ID means every viewer settles on the
-  // same one. (Sorting by created time would be neater, but the built-in
-  // timestamps can't be sorted everywhere the block runs.)
+  // same one.
   const query = useDataSource(DATA_SOURCE_KEY, {
     filter: { key: "block", rich_text: { equals: blockId } },
     limit: 5,
   })
   const { items, propertyIdsByKey, isLoading, error } = query
-
   const callout = useMemo(() => toCallout(pickRow(items)), [items])
-  const lastEdited = JSON.stringify(callout.row?.propertiesById.last_edited_time ?? null)
-  const segments = useFormattedText(
-    callout.row?.id,
-    propertyIdsByKey.text,
-    callout.text,
-    `${lastEdited}:${revision}`
-  )
+  const look: Look = {
+    segments: pending.segments ?? callout.segments,
+    icon: pending.icon ?? callout.icon,
+    colour: pending.colour ?? callout.colour,
+  }
 
-  const write = useCallback(async (run: () => Promise<WriteResult>) => {
-    setBusy(true)
-    setWriteError(null)
-
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const timeout = new Promise<WriteResult>((resolve) => {
-      timer = setTimeout(
-        () =>
-          resolve({
-            status: "error",
-            error: {
-              message:
-                "Notion didn't respond to that change. It may not have been saved, so reopen the editor to check.",
-            },
-          }),
-        WRITE_TIMEOUT_MS
-      )
+  // Drop each pending change once Notion reports it back.
+  useEffect(() => {
+    setPending((current) => {
+      const next = { ...current }
+      if (next.segments && sameSegments(next.segments, callout.segments)) delete next.segments
+      if (next.icon !== undefined && next.icon === callout.icon) delete next.icon
+      if (next.colour !== undefined && next.colour === callout.colour) delete next.colour
+      return Object.keys(next).length === Object.keys(current).length ? current : next
     })
+  }, [callout])
 
-    try {
-      const result = await Promise.race([run(), timeout])
-      if (result.status === "error") setWriteError(result.error.message)
-      return result.status === "success"
-    } catch (cause) {
-      setWriteError(cause instanceof Error ? cause.message : String(cause))
-      return false
-    } finally {
-      clearTimeout(timer)
-      setBusy(false)
-    }
-  }, [])
+  // Writes run one at a time. The first creates the row; later ones, even if
+  // they start before the new row appears in the query, update that same row.
+  const queue = useRef<Promise<unknown>>(Promise.resolve())
+  const createdId = useRef<string | null>(null)
+  const latest = useRef({ callout, look, propertyIdsByKey })
+  latest.current = { callout, look, propertyIdsByKey }
 
-  async function save(edit: CalloutEdit) {
-    const next = carryHiddenStyles(segments, fromMarkdown(edit.markdown))
-    const properties: NotionPagePropertyInputMap = {}
+  const save = useCallback(
+    (change: Partial<Look>) => {
+      setPending((current) => ({ ...current, ...change }))
+      setWriteError(null)
 
-    if (toMarkdown(next) !== toMarkdown(segments) || plainText(next) !== callout.text) {
-      properties.text = { type: "title", title: toNotionRichText(next) }
-    }
-    if (!callout.row || edit.icon !== callout.icon) {
-      properties.icon = {
-        type: "rich_text",
-        rich_text: edit.icon ? [{ type: "text", text: { content: edit.icon } }] : [],
-      }
-    }
-    if (!callout.row || edit.colour !== callout.colour) {
-      properties.colour = {
-        type: "rich_text",
-        rich_text: [{ type: "text", text: { content: edit.colour } }],
-      }
-    }
+      queue.current = queue.current.then(async () => {
+        const { callout: saved, look: shown, propertyIdsByKey: ids } = latest.current
+        const row = saved.row
+        const rowId = row?.id ?? createdId.current
+        const all = { ...shown, ...change }
+        const properties = toProperties(rowId ? change : all, ids.formatted !== undefined)
 
-    const row = callout.row
-    if (row && Object.keys(properties).length === 0) {
-      setPreview(null)
-      setEditing(false)
-      return
-    }
-
-    const saved = await write(() =>
-      row
-        ? row.update({ properties })
-        : pages.create({
+        const result = await withTimeout(async (): Promise<WriteResult> => {
+          if (row) return row.update({ properties })
+          if (rowId) {
+            return pages.update({ pageId: rowId as NotionPageId, properties: byPropertyId(properties, ids) })
+          }
+          const created = await pages.create({
             parent: { type: "data_source_key", key: DATA_SOURCE_KEY },
             properties: {
               ...properties,
-              text: { type: "title", title: toNotionRichText(next) },
-              block: {
-                type: "rich_text",
-                rich_text: [{ type: "text", text: { content: blockId } }],
-              },
+              block: { type: "rich_text", rich_text: [{ type: "text", text: { content: blockId } }] },
             },
           })
-    )
-    if (saved) {
-      setPreview(null)
-      setEditing(false)
-      setRevision((current) => current + 1)
-    }
-  }
+          if (created.status === "success") createdId.current = created.page.id
+          return created
+        })
+        if (result.status === "error") setWriteError(result.error.message)
+      })
+    },
+    [blockId]
+  )
 
   if (error) {
     return (
@@ -169,54 +141,54 @@ export function App() {
     )
   }
 
-  const isEmpty = plainText(segments).trim() === ""
-  const look = editing && preview ? preview : callout
+  // With no icon there is nothing to click, so while the text is being edited
+  // the icon's place offers "Add icon", as Notion does for pages.
+  const showIcon = Boolean(look.icon) || editingText || menuOpen
 
   return (
-    <main className={`callout-root ${editing ? "is-editing" : ""}`}>
-      {!editing ? (
-        <div className="callout-toolbar">
-          <button type="button" className="ghost-button" onClick={() => setEditing(true)}>
-            Edit callout
+    <main ref={setContainer} className="callout-root">
+      <TiltSurface enabled={!editingText && !menuOpen} className={`callout callout-${look.colour}`}>
+        {showIcon ? (
+          <button
+            type="button"
+            className={`callout-icon ${look.icon ? "" : "is-placeholder"}`}
+            aria-label={look.icon ? "Change icon or colour" : "Add icon"}
+            aria-expanded={menuOpen}
+            title={look.icon ? "Change icon or colour" : "Add icon"}
+            // Keep the text focused until the menu takes over, so the button
+            // does not vanish under the pointer mid-click.
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            {look.icon || <AddIconGlyph />}
           </button>
-        </div>
-      ) : null}
-
-      <TiltSurface enabled={!editing} className={`callout callout-${look.colour}`}>
-        {look.icon ? (
-          <span className="callout-icon" aria-hidden="true">
-            {look.icon}
-          </span>
         ) : null}
         <div className="callout-text">
-          {isEmpty ? (
-            <span className="callout-placeholder">
-              {callout.row ? "Empty callout" : "Hover and choose “Edit callout” to write this callout."}
-            </span>
-          ) : (
-            <RichText segments={segments} />
-          )}
+          <InlineText
+            segments={look.segments}
+            placeholder="Type something…"
+            container={container}
+            onEditingChange={setEditingText}
+            onCommit={(segments) => save({ segments })}
+          />
         </div>
       </TiltSurface>
 
-      {writeError ? (
-        <div className="notice notice-error" role="alert">
-          {writeError}
-        </div>
+      {menuOpen ? (
+        <IconMenu
+          icon={look.icon}
+          colour={look.colour}
+          menuRef={setMenuNode}
+          onIcon={(icon) => save({ icon })}
+          onColour={(colour) => save({ colour })}
+          onClose={() => setMenuOpen(false)}
+        />
       ) : null}
 
-      {editing ? (
-        <Editor
-          initial={{ markdown: toMarkdown(segments), icon: callout.icon, colour: callout.colour }}
-          busy={busy}
-          onSave={(edit) => void save(edit)}
-          onPreview={setPreview}
-          onCancel={() => {
-            setWriteError(null)
-            setPreview(null)
-            setEditing(false)
-          }}
-        />
+      {writeError ? (
+        <div className="notice notice-error" role="alert">
+          Couldn't save that change: {writeError}
+        </div>
       ) : null}
     </main>
   )
@@ -226,43 +198,68 @@ function pickRow(rows: NotionDataSourcePage[]): NotionDataSourcePage | undefined
   return [...rows].sort((a, b) => a.id.localeCompare(b.id))[0]
 }
 
+function plainRichText(content: string) {
+  return toNotionRichText(fromPlainText(content))
+}
+
 /**
- * The callout's text with its formatting.
- *
- * Data source queries return titles as plain text, so the formatted version is
- * read from the page itself whenever the text changes. Until it arrives, and if
- * it ever disagrees with the live plain text (a stale answer racing an edit),
- * the plain text is shown instead, so the block never shows words that are not
- * in the database. `version` changes whenever the row may have been restyled
- * without its words changing.
+ * The fields to write for a change. Text gets the formatted runs too (Notion
+ * may one day keep them) and Formatted text gets them as JSON, which the bridge
+ * does keep. A callout bound before Formatted text existed saves its words only.
  */
-function useFormattedText(
-  pageId: string | undefined,
-  propertyId: string | undefined,
-  text: string,
-  version: string
-): Segment[] {
-  const [formatted, setFormatted] = useState<Segment[] | null>(null)
+function toProperties(change: Partial<Look>, canFormat: boolean): NotionPagePropertyInputMap {
+  const properties: NotionPagePropertyInputMap = {}
+  if (change.segments) {
+    properties.text = { type: "title", title: toNotionRichText(change.segments) }
+    if (canFormat) properties.formatted = { type: "rich_text", rich_text: plainRichText(toStored(change.segments)) }
+  }
+  if (change.icon !== undefined) properties.icon = { type: "rich_text", rich_text: plainRichText(change.icon) }
+  if (change.colour !== undefined) properties.colour = { type: "rich_text", rich_text: plainRichText(change.colour) }
+  return properties
+}
 
-  useEffect(() => {
-    if (!pageId || !propertyId) {
-      setFormatted(null)
-      return
-    }
-    let cancelled = false
-    // Row IDs are page IDs; the SDK just types them as plain strings.
-    void pages.get(pageId as NotionPageId).then((result) => {
-      if (cancelled || result.status !== "success") return
-      const property = Object.values(result.page.properties).find(
-        (candidate) => candidate.id === propertyId
-      )
-      if (property?.type === "title") setFormatted(fromNotionRichText(property.title))
-      else if (property?.type === "rich_text") setFormatted(fromNotionRichText(property.rich_text))
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [pageId, propertyId, text, version])
+/** `pages.update` takes raw property IDs, each repeated in its value. */
+function byPropertyId(
+  properties: NotionPagePropertyInputMap,
+  ids: Record<string, string | undefined>
+): NotionPagePropertyWriteMap {
+  const written: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(properties)) {
+    const id = ids[key]
+    if (id) written[id] = { ...value, id }
+  }
+  return written as NotionPagePropertyWriteMap
+}
 
-  return formatted && plainText(formatted) === text ? formatted : fromPlainText(text)
+async function withTimeout(run: () => Promise<WriteResult>): Promise<WriteResult> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<WriteResult>((resolve) => {
+    timer = setTimeout(
+      () =>
+        resolve({
+          status: "error",
+          error: { message: "Notion didn't respond. Edit the callout again to retry." },
+        }),
+      WRITE_TIMEOUT_MS
+    )
+  })
+  try {
+    return await Promise.race([run(), timeout])
+  } catch (cause) {
+    return { status: "error", error: { message: cause instanceof Error ? cause.message : String(cause) } }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** Notion's "Add icon" smiley, drawn faintly where the icon would be. */
+function AddIconGlyph() {
+  return (
+    <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+      <circle cx="10" cy="10" r="7.25" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="7.5" cy="8.5" r="1" fill="currentColor" />
+      <circle cx="12.5" cy="8.5" r="1" fill="currentColor" />
+      <path d="M7 12c.8 1 1.8 1.5 3 1.5s2.2-.5 3-1.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
 }
