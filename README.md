@@ -5,7 +5,7 @@ from. A **custom block** is a small React app that Notion embeds in a page as a
 sandboxed iframe, with live read/write access to data sources the person
 configures when they insert it.
 
-Currently ships two blocks: **Stepline (vertical)** and **Tilting callout**.
+Currently ships two blocks: **Steplist** and **Tilting callout**.
 
 > [!NOTE]
 > Custom blocks are in Notion's **private alpha**. The workspace needs the
@@ -14,39 +14,32 @@ Currently ships two blocks: **Stepline (vertical)** and **Tilting callout**.
 
 ---
 
-## The Stepline (vertical) block
+## The Steplist block
 
-A vertical, numbered stepline rendered inline in a Notion page. Each step is a
-circular bullet joined to the next by a connecting line. Clicking a step expands
-it like a toggle to reveal its detail.
+A numbered list of steps under a heading, rendered inline in a Notion page. Each
+step is a bullet joined to the next by a hairline; clicking a step expands it
+like a toggle to reveal its detail. (It was called the Stepline until October
+2026; the code lives in `blocks/steplist/`.)
 
-- **Numbered bullets, connected by a rail.** Steps are numbered by their place in
-  the sequence. Completed steps swap their number for a tick and fill in, so the
-  rail reads as progress at a glance.
-- **Status drives the bullet.** Complete steps fill solid, in-progress steps get
-  a highlighted ring, not-started steps stay outlined.
-- **Status drives the colour.** A step's title and its status label both take the
-  colour the workspace gave that option, so the stepline reads in the same
-  colours as the database behind it. Options with no hue — `default` and `gray`,
-  which an untouched "Not started" usually is — keep a plain black title.
-- **Reading it shows no controls at all.** An open step is its detail text on the
-  page — no card, no buttons. "Edit stepline" appears on hover (and on keyboard
-  focus) and is the only chrome at rest.
-- **Editing is a mode.** Choosing "Edit stepline" reveals each step's Edit, Move
-  and Remove actions plus "Add step"; "Done" puts them all away again. Within it,
-  "Edit" on a step opens a form for its title, detail and status — nothing
-  is written until Save, and Cancel leaves the step untouched. A newly added step
-  opens straight into its form, since it has nothing to read yet.
-- Edits are written straight back to the bound Notion database, because that is
-  where the content actually lives.
-- **Reorder without leaving the page.** Move up / move down rewrite the Position
-  property; adding a step appends it to the end.
-- **Removing is a two-step confirm** and archives the row rather than deleting
-  it, so it can be restored from the database.
+- **A heading.** The H3 above the steps is a row in the same database whose
+  **Row type** is "Title". Click it and type, as in Notion; select text to
+  format it. Its formatting is kept in that row's Detail.
+- **Status you can change in place.** Click a step's status pill or its bullet
+  for a quiet status menu, grouped To-do / In progress / Complete as Notion's is.
+- **Notion's own colours.** A step's title takes its status option's colour, in
+  Notion's text colour for that hue; the pill is drawn exactly as Notion draws
+  one. Both were read from the Notion app's stylesheet (see the palette in
+  `index.css`). Statuses with no hue keep black titles.
+- **Completed steps** fill their bullet with the title's colour and a white tick.
+- **Readers can see what opens.** Steps with detail always show a chevron, and
+  hovering a title says "Click to reveal".
+- **Editing the list is a mode.** "Edit steplist" (on hover) reveals each step's
+  Edit, Move and Remove plus "Add step"; "Done" puts them away. Removing is a
+  two-step confirm and archives the row, so it can be restored.
 
 ### What it binds to
 
-The block declares one data source, `steps`, with five properties. When someone
+The block declares one data source, `steps`, with six properties. When someone
 inserts the block they map each slot to a real property; Notion auto-matches by
 name, so a database using these names binds with no manual mapping:
 
@@ -57,6 +50,7 @@ name, so a database using these names binds with no manual mapping:
 | Status | `status` | Drives the bullet's appearance |
 | Position | `number` | Sort order — the numbering follows it |
 | Date | `date` | Optional date shown beside the title (display only) |
+| Row type | `select` | Empty for a step; "Title" on the row that holds the heading |
 
 Steps deliberately carry no icon: the numbered bullet already marks each one, and
 a page icon added elsewhere is simply not drawn. (An earlier version offered an
@@ -144,7 +138,7 @@ npm run dev
 
 Then open http://localhost:9873. The shell builds the worker, reads the block
 declaration, and serves the block with live reload. `data/steps.json` is a sample
-stepline it binds against — pick **Steps (sample)** in the shell's *Data* panel
+steplist it binds against — pick **Steps (sample)** in the shell's *Data* panel
 if it auto-binds to the empty generated source instead.
 
 The tilting callout auto-binds to the generated, empty **Callouts** source and
@@ -186,13 +180,13 @@ ntn login
 ntn workers deploy
 ```
 
-Then insert it into a page — type `/stepline` in the slash menu, or:
+Then insert it into a page — type `/steplist` in the slash menu, or:
 
 ```bash
 ntn workers customblocks make --key timeline --target <page-id-or-url>
 ```
 
-The `--key` is `timeline`, not `stepline`: the declaration key is the stable
+The `--key` is `timeline`, not `steplist`: the declaration key is the stable
 identity every placed block is bound to, so it stays put while the display name
 and slash command carry the block's public name.
 
@@ -216,7 +210,7 @@ worker is `notion-blocks` in **Thread & Stack**
 
 ## Adding another block
 
-1. Copy `blocks/stepline/` to `blocks/<key>/` and strip it back.
+1. Copy `blocks/steplist/` to `blocks/<key>/` and strip it back.
 2. Add a second `worker.customBlock("<key>", { … })` in [src/index.ts](src/index.ts).
    Always set `command` explicitly — its default (`npm run build`) builds the
    worker, not the frontend.
@@ -255,7 +249,7 @@ worker is `notion-blocks` in **Thread & Stack**
 
 ```
 src/index.ts              worker declaration — block manifest and data source schema
-blocks/stepline/
+blocks/steplist/
   index.html              iframe document
   vite.config.ts          frontend build
   src/index.tsx           entry — NotionCustomBlock + NotionTokenScope wrappers
@@ -273,6 +267,6 @@ blocks/tilting-callout/
   src/callout.ts          colours, icons, rich text ⇄ Markdown shortcuts
   src/index.css           callout, tilt and colour styles
 data/steps.json           sample rows for the dev shell
-test/stepline.test.mjs    declaration and data-shaping tests
+test/steplist.test.mjs    declaration and data-shaping tests
 test/tilting-callout.test.mjs  formatting round trip, tilt maths, guards
 ```
