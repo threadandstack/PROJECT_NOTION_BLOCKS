@@ -1,0 +1,28 @@
+{
+  "type": "worker",
+  "key": "worker_callouts",
+  "name": "Callouts",
+  "schema": {
+    "text": {
+      "name": "Text",
+      "type": "title"
+    },
+    "formatted": {
+      "name": "Formatted text",
+      "type": "rich_text"
+    },
+    "icon": {
+      "name": "Icon",
+      "type": "rich_text"
+    },
+    "colour": {
+      "name": "Colour",
+      "type": "rich_text"
+    },
+    "block": {
+      "name": "Block ID",
+      "type": "rich_text"
+    }
+  },
+  "rows": []
+}

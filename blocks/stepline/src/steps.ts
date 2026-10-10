@@ -4,6 +4,7 @@ import type {
   NotionPropertyOption,
   NotionPropertySchema,
 } from "@notionhq/custom-blocks"
+import { fromStored } from "./richText.ts"
 
 /**
  * How a step's status reads visually on the rail. Derived from the bound Status
@@ -24,6 +25,8 @@ export type Step = {
    * ordinary text rather than as a tinted one.
    */
   tone?: StatusTone
+  /** The status pill's colour. Unlike the title, grey and default pills are grey. */
+  pill: PillTone
   position?: number
   date?: string
   phase: StepPhase
@@ -42,6 +45,34 @@ export const STATUS_TONES = [
 ] as const
 
 export type StatusTone = (typeof STATUS_TONES)[number]
+
+/** A status pill can also be grey, which is how Notion draws default and grey options. */
+export type PillTone = StatusTone | "gray"
+
+/**
+ * The value of the Row type select that marks a row as the stepline's heading
+ * rather than a step. Any other value, or none, is a step.
+ */
+export const TITLE_ROW_TYPE = "Title"
+
+/**
+ * Whether a row is the steplist's heading row: its Row type is Title, or its
+ * Detail holds the heading's stored formatting, which only the block writes and
+ * only on the heading row.
+ *
+ * The second test matters. Notion's bridge silently ignores a select value that
+ * isn't already an option, so in a database whose Row type has no "Title"
+ * option yet, the heading row the block creates arrives with Row type empty.
+ */
+export function isTitleRow(row: NotionDataSourcePage): boolean {
+  if (asText(row.propertiesByKey.kind).trim().toLowerCase() === TITLE_ROW_TYPE.toLowerCase()) return true
+  return fromStored(row.propertiesByKey.detail) !== null
+}
+
+/** The stepline's heading row: the first one marked Title, by ID so every viewer agrees. */
+export function findTitleRow(rows: NotionDataSourcePage[]): NotionDataSourcePage | undefined {
+  return rows.filter(isTitleRow).sort((a, b) => a.id.localeCompare(b.id))[0]
+}
 
 /** Notion's three built-in status groups, lower-cased for matching. */
 const COMPLETE_GROUP = "complete"
@@ -108,6 +139,40 @@ function toneForStatus(
   return STATUS_TONES.includes(hue as StatusTone) ? (hue as StatusTone) : undefined
 }
 
+/** A status option's pill colour: its hue, or grey for default and grey options. */
+export function pillForOption(color: string | undefined): PillTone {
+  const hue = (color ?? "").replace(/_background$/, "")
+  return STATUS_TONES.includes(hue as StatusTone) ? (hue as StatusTone) : "gray"
+}
+
+function pillForStatus(status: string | undefined, schema: NotionPropertySchema | undefined): PillTone {
+  if (!status || schema?.type !== "status") return "gray"
+  return pillForOption(schema.options?.find((option) => option.name === status)?.color)
+}
+
+export type StatusGroup = { name: string; options: NotionPropertyOption[] }
+
+/**
+ * The status options in Notion's own groups (To-do, In progress, Complete), the
+ * way Notion's status menu lists them. Options in no group, or a host that
+ * sends no groups, fall into one unnamed list.
+ */
+export function statusGroups(schema: NotionPropertySchema | undefined): StatusGroup[] {
+  const options = statusOptions(schema)
+  if (schema?.type !== "status" || !schema.groups?.length) return options.length ? [{ name: "", options }] : []
+
+  const placed = new Set<string>()
+  const groups = schema.groups
+    .map((group) => {
+      const members = options.filter((option) => group.option_ids.includes(option.id))
+      members.forEach((option) => placed.add(option.id))
+      return { name: group.name, options: members }
+    })
+    .filter((group) => group.options.length > 0)
+  const rest = options.filter((option) => !placed.has(option.id))
+  return rest.length ? [...groups, { name: "", options: rest }] : groups
+}
+
 /**
  * Map a status option to a phase. Group membership is authoritative; the
  * word-list fallback only runs when the host gives us no groups.
@@ -138,7 +203,8 @@ function phaseForStatus(
 }
 
 /**
- * Turn raw rows into ordered steps.
+ * Turn raw rows into ordered steps. The heading row (Row type = Title) is not a
+ * step and is left out.
  *
  * `position` is sorted client-side rather than through the query's `sorts`
  * because rows with no position must fall to the end in a stable, predictable
@@ -150,6 +216,7 @@ export function toSteps(
   statusSchema: NotionPropertySchema | undefined
 ): Step[] {
   return rows
+    .filter((row) => !isTitleRow(row))
     .map((row) => {
       const status = asText(row.propertiesByKey.status) || undefined
       return {
@@ -159,6 +226,7 @@ export function toSteps(
         detail: asText(row.propertiesByKey.detail),
         status,
         tone: toneForStatus(status, statusSchema),
+        pill: pillForStatus(status, statusSchema),
         position: asNumber(row.propertiesByKey.position),
         date: asDateStart(row.propertiesByKey.date),
         phase: phaseForStatus(status, statusSchema),

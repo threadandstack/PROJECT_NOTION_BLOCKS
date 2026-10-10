@@ -23,6 +23,8 @@ type StepProps = {
   editing: boolean
   busy: boolean
   onToggle: () => void
+  /** Open the status menu below the element clicked; absent when there are no statuses to pick. */
+  onOpenStatus?: (anchor: HTMLElement) => void
   onStartEditing: () => void
   onStopEditing: () => void
   onSave: (edit: StepEdit) => void
@@ -42,6 +44,7 @@ export function Step({
   editing,
   busy,
   onToggle,
+  onOpenStatus,
   onStartEditing,
   onStopEditing,
   onSave,
@@ -56,36 +59,86 @@ export function Step({
   }, [expanded, editable])
 
   const date = formatDate(step.date)
+  // Only offer to open a step when opening it shows something: its detail, or
+  // (while editing the steplist) its actions.
+  const revealable = Boolean(step.detail) || editable || expanded
   const title = step.title || "Untitled step"
 
   return (
-    <li className={`step step-${step.phase} ${expanded ? "is-expanded" : ""}`}>
-      <div className="rail" aria-hidden="true">
-        <span className="bullet">
-          {step.phase === "complete" ? <CheckMark /> : index}
-        </span>
-        {isLast ? null : <span className="connector" />}
+    <li className={`step step-${step.phase} ${step.tone ? `ink-${step.tone}` : ""} ${expanded ? "is-expanded" : ""}`}>
+      <div className="rail">
+        {/*
+          The bullet doubles as the status control, like the pill beside the
+          title: clicking either opens the status menu.
+        */}
+        {onOpenStatus ? (
+          <button
+            type="button"
+            className="bullet"
+            aria-label={`Step ${index} status: ${step.status ?? "none"}. Change status`}
+            aria-haspopup="menu"
+            disabled={busy}
+            onClick={(event) => onOpenStatus(event.currentTarget)}
+          >
+            {step.phase === "complete" ? <CheckMark /> : index}
+          </button>
+        ) : (
+          <span className="bullet" aria-hidden="true">
+            {step.phase === "complete" ? <CheckMark /> : index}
+          </span>
+        )}
+        {isLast ? null : <span className="connector" aria-hidden="true" />}
       </div>
 
       <div className="step-body">
-        <button
-          type="button"
+        {/*
+          The row toggles the step open, but holds the status pill, which is a
+          button of its own, so it is a div with button behaviour rather than a
+          <button> (buttons cannot nest).
+        */}
+        <div
+          role="button"
+          tabIndex={0}
           className="step-header"
           aria-expanded={expanded}
           aria-controls={panelId}
           onClick={onToggle}
+          onKeyDown={(event) => {
+            if (event.target !== event.currentTarget) return
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault()
+              onToggle()
+            }
+          }}
         >
-          <span className={`step-title ${step.tone ? `tone-${step.tone}` : ""}`}>
-            {title}
-          </span>
-          {step.status ? (
-            <span className={`status-tag ${step.tone ? `tone-${step.tone}` : ""}`}>
-              {step.status}
+          <span
+            className="step-title-wrap"
+            data-tooltip={revealable ? (expanded ? "Click to hide" : "Click to reveal") : undefined}
+          >
+            <span className={`step-title ${step.tone ? `tone-${step.tone}` : ""}`}>
+              {title}
             </span>
+          </span>
+          {step.status && onOpenStatus ? (
+            <button
+              type="button"
+              className={`status-tag status-button pill-${step.pill}`}
+              aria-haspopup="menu"
+              aria-label={`Status: ${step.status}. Change status`}
+              disabled={busy}
+              onClick={(event) => {
+                event.stopPropagation()
+                onOpenStatus(event.currentTarget)
+              }}
+            >
+              {step.status}
+            </button>
+          ) : step.status ? (
+            <span className={`status-tag pill-${step.pill}`}>{step.status}</span>
           ) : null}
           {date ? <span className="step-date">{date}</span> : null}
-          <Chevron expanded={expanded} />
-        </button>
+          {revealable ? <Chevron expanded={expanded} /> : null}
+        </div>
 
         <div className="step-panel" id={panelId} hidden={!expanded}>
           {editing ? (

@@ -22,6 +22,8 @@
 
 Use the `custom-blocks` skill in `.agents/skills/custom-blocks/` before writing any block code. It covers the two SDK surfaces, the package setup this project requires, block sources, `dataSources` schemas and property types, and the local dev shell.
 
+Whenever a block needs editable or formatted text, use the `text-editor` skill in `.agents/skills/text-editor/`. It rolls out the tilting callout's Notion-style inline editor (selection menu, shortcuts, formatting that survives Notion's bridge) rather than a textarea or form.
+
 ## Code example
 
 ```ts

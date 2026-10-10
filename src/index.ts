@@ -3,9 +3,9 @@ import { Worker } from "@notionhq/workers"
 const worker = new Worker()
 export default worker
 
-// ─── Stepline (vertical) ────────────────────────────────────────────────────
+// ─── Steplist ───────────────────────────────────────────────────────────────
 //
-// A numbered, connected stepline rendered inline in a Notion page. Each step is
+// A numbered, connected steplist rendered inline in a Notion page. Each step is
 // a row in a bound data source, so the content lives in Notion and stays
 // editable from the database as well as from the block itself.
 //
@@ -20,11 +20,11 @@ export default worker
 // ones already on pages; only the display name and slash command are the
 // block's public name.
 worker.customBlock("timeline", {
-  name: "Stepline (vertical)",
+  name: "Steplist",
   description:
-    "A vertical, numbered stepline. Each step expands to reveal its detail, and carries a status.",
+    "A numbered list of steps under a heading. Each step expands to reveal its detail, and carries a status you can change in place.",
   icon: { type: "emoji", emoji: "🧭" },
-  slashCommand: "stepline",
+  slashCommand: "steplist",
   path: "./blocks/stepline",
   command: "npx vite build",
   output: "dist",
@@ -61,6 +61,73 @@ worker.customBlock("timeline", {
           name: "Date",
           description: "Optional date shown beneath the step's title.",
           type: "date",
+        },
+        // The steplist's heading lives in the same database as its steps: a row
+        // whose Row type is "Title" is shown as the H3 and left out of the steps.
+        kind: {
+          name: "Row type",
+          description:
+            "Leave empty for a step. Set by the block to \"Title\" on the row that holds the steplist's heading (its Detail keeps the heading's formatting).",
+          type: "select",
+        },
+      },
+    },
+  },
+})
+
+// ─── Tilting callout ────────────────────────────────────────────────────────
+//
+// A Notion callout (icon, text, colour) that leans towards the pointer on hover.
+//
+// Custom blocks have no per-instance storage, so each callout is a row in a
+// shared Callouts database, found by the block's own ID in the `block`
+// property. One database can hold every tilting callout in the workspace. The
+// row is created on first save, so an untouched block never writes to Notion.
+worker.customBlock("tiltingCallout", {
+  name: "Tilting callout",
+  description:
+    "A callout that tilts to follow the cursor on hover. Icon, colour and formatted text work as in a Notion callout.",
+  icon: { type: "emoji", emoji: "💡" },
+  slashCommand: "tilting-callout",
+  path: "./blocks/tilting-callout",
+  command: "npx vite build",
+  output: "dist",
+  version: 1,
+  dataSources: {
+    callouts: {
+      name: "Callouts",
+      description:
+        "One row per tilting callout. Rows are created by the block; each is matched to its block by Block ID.",
+      icon: { type: "emoji", emoji: "💡" },
+      properties: {
+        text: {
+          name: "Text",
+          description: "The callout's words, as plain text.",
+          type: "title",
+        },
+        // Notion's custom block bridge drops title formatting in both
+        // directions, so the formatted text travels here as JSON instead.
+        formatted: {
+          name: "Formatted text",
+          description:
+            "Set by the block: the callout's text with its formatting (bold, links, colour). Safe to hide; don't edit.",
+          type: "rich_text",
+        },
+        icon: {
+          name: "Icon",
+          description: "A single emoji shown beside the text. Leave empty for no icon.",
+          type: "rich_text",
+        },
+        colour: {
+          name: "Colour",
+          description:
+            "A Notion colour, such as gray_background, blue_background or red. Plain hues colour the text; _background hues fill the callout.",
+          type: "rich_text",
+        },
+        block: {
+          name: "Block ID",
+          description: "Set by the block to link the row to the callout it belongs to. Don't edit.",
+          type: "rich_text",
         },
       },
     },
