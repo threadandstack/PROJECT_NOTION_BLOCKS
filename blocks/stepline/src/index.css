@@ -20,7 +20,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-12);
+  gap: var(--spacing-4);
   padding: var(--spacing-4) var(--spacing-2) var(--spacing-24);
 }
 
@@ -63,8 +63,8 @@
 
 .step {
   display: grid;
-  grid-template-columns: var(--spacing-32) 1fr;
-  column-gap: var(--spacing-12);
+  grid-template-columns: var(--spacing-24) 1fr;
+  column-gap: var(--spacing-8);
 }
 
 .rail {
@@ -76,16 +76,16 @@
 /* The numbered circle. Its fill is what carries the step's status. */
 .bullet {
   flex: none;
-  width: var(--spacing-28);
-  height: var(--spacing-28);
+  width: var(--spacing-20);
+  height: var(--spacing-20);
   border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--text-body-sm);
-  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-body-xs);
+  font-weight: var(--font-weight-medium);
   font-variant-numeric: tabular-nums;
-  border: 2px solid var(--border-strong);
+  border: 1.5px solid var(--border-strong);
   background: var(--bg-base);
   color: var(--content-secondary);
   transition:
@@ -97,11 +97,11 @@
 /* The line joining one bullet to the next. */
 .connector {
   flex: 1 1 auto;
-  width: 2px;
-  min-height: var(--spacing-16);
-  margin: var(--spacing-4) 0;
-  border-radius: var(--radius-full);
-  background: var(--border-secondary);
+  width: 1px;
+  min-height: var(--spacing-4);
+  margin: 0;
+  border-radius: 0;
+  background: var(--border-primary);
 }
 
 .step-complete .bullet {
@@ -124,7 +124,7 @@
 
 .step-body {
   min-width: 0;
-  padding-bottom: var(--spacing-8);
+  padding-bottom: var(--spacing-2);
 }
 
 .step-header {
@@ -141,7 +141,7 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
-  min-height: var(--spacing-32);
+  min-height: var(--spacing-28);
 }
 
 .step-header:hover {
@@ -154,12 +154,12 @@
 }
 
 /*
- * A step title is a heading for the text under it, so it takes the title step of
- * the scale (17px) rather than body (14px), which the detail copy keeps.
+ * A step title sits at body size (14px), as Notion's own list and toggle rows
+ * do; medium weight is what sets it apart from the detail copy under it.
  */
 .step-title {
-  font-size: var(--text-title);
-  line-height: var(--text-title--line-height);
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
   font-weight: var(--font-weight-medium);
   color: var(--content-primary);
   overflow: hidden;
@@ -235,10 +235,32 @@
 [data-display-mode="dark"] .status-tag.tone-red { background: var(--red-140); }
 
 .chevron {
-  margin-left: auto;
   flex: none;
   color: var(--content-tertiary);
-  transition: transform 140ms ease;
+  opacity: 0;
+  transition:
+    transform 140ms ease,
+    opacity 120ms ease;
+}
+
+/*
+ * The chevron is revealed on hover rather than sitting on the row permanently.
+ * Notion does the same with its own block affordances, and it keeps a step at
+ * rest down to its bullet, title and status. It also hides the fact that the
+ * chevron lands at a different x on every row, because each title and date is a
+ * different width. An open step keeps it so there is always a visible way back.
+ */
+.step-header:hover .chevron,
+.step-header:focus-visible .chevron,
+.chevron.is-open {
+  opacity: 1;
+}
+
+/* Touch and keyboard-only users never hover, so never hide it from them. */
+@media (hover: none) {
+  .chevron {
+    opacity: 1;
+  }
 }
 
 .chevron.is-open {
@@ -505,12 +527,12 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--spacing-8);
-  padding-left: calc(var(--spacing-32) + var(--spacing-12));
+  padding-left: calc(var(--spacing-24) + var(--spacing-8));
 }
 
 .empty {
   margin: 0;
-  padding-left: calc(var(--spacing-32) + var(--spacing-12));
+  padding-left: calc(var(--spacing-24) + var(--spacing-8));
   font-size: var(--text-body-sm);
   color: var(--content-tertiary);
 }
