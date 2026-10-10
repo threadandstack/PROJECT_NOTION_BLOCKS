@@ -292,3 +292,17 @@ test("disabled controls stay legible", async () => {
     "disabled buttons should dim"
   )
 })
+
+// Readers need to see that a step has more in it, so the chevron is always
+// shown (on steps with something to reveal), and the title says so on hover.
+test("chevrons are always visible and the title explains them", async () => {
+  const css = (
+    await readFile(new URL("../blocks/stepline/src/index.css", import.meta.url), "utf8")
+  ).replace(/\/\*[\s\S]*?\*\//g, "")
+  const chevron = css.slice(css.indexOf(".chevron {"), css.indexOf("}", css.indexOf(".chevron {")))
+  assert.doesNotMatch(chevron, /opacity:\s*0/, "the chevron is hidden at rest")
+  assert.doesNotMatch(css, /:hover \.chevron/, "the chevron only appears on hover")
+
+  const step = await readFile(new URL("../blocks/stepline/src/Step.tsx", import.meta.url), "utf8")
+  assert.match(step, /"Click to reveal"/)
+})

@@ -59,6 +59,9 @@ export function Step({
   }, [expanded, editable])
 
   const date = formatDate(step.date)
+  // Only offer to open a step when opening it shows something: its detail, or
+  // (while editing the steplist) its actions.
+  const revealable = Boolean(step.detail) || editable || expanded
   const title = step.title || "Untitled step"
 
   return (
@@ -108,8 +111,13 @@ export function Step({
             }
           }}
         >
-          <span className={`step-title ${step.tone ? `tone-${step.tone}` : ""}`}>
-            {title}
+          <span
+            className="step-title-wrap"
+            data-tooltip={revealable ? (expanded ? "Click to hide" : "Click to reveal") : undefined}
+          >
+            <span className={`step-title ${step.tone ? `tone-${step.tone}` : ""}`}>
+              {title}
+            </span>
           </span>
           {step.status && onOpenStatus ? (
             <button
@@ -129,7 +137,7 @@ export function Step({
             <span className={`status-tag pill-${step.pill}`}>{step.status}</span>
           ) : null}
           {date ? <span className="step-date">{date}</span> : null}
-          <Chevron expanded={expanded} />
+          {revealable ? <Chevron expanded={expanded} /> : null}
         </div>
 
         <div className="step-panel" id={panelId} hidden={!expanded}>
