@@ -25,7 +25,7 @@ worker.customBlock("timeline", {
     "A numbered list of steps under a heading. Each step expands to reveal its detail, and carries a status you can change in place.",
   icon: { type: "emoji", emoji: "🧭" },
   slashCommand: "steplist",
-  path: "./blocks/stepline",
+  path: "./blocks/steplist",
   command: "npx vite build",
   output: "dist",
   version: 1,

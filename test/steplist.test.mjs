@@ -8,7 +8,7 @@ import {
   pillForOption,
   statusGroups,
   toSteps,
-} from "../blocks/stepline/src/steps.ts"
+} from "../blocks/steplist/src/steps.ts"
 
 const workerUrl = new URL("../src/index.ts", import.meta.url)
 
@@ -33,7 +33,7 @@ const statusSchema = {
   ],
 }
 
-test("declares the stepline block and the properties it binds", async () => {
+test("declares the steplist block and the properties it binds", async () => {
   const source = await readFile(workerUrl, "utf8")
 
   // The key stays "timeline" deliberately — it is the identity placed blocks
@@ -42,7 +42,7 @@ test("declares the stepline block and the properties it binds", async () => {
   assert.match(source, /worker\.customBlock\("timeline"/)
   assert.match(source, /name:\s*"Steplist"/)
   assert.match(source, /slashCommand:\s*"steplist"/)
-  assert.match(source, /path:\s*"\.\/blocks\/stepline"/)
+  assert.match(source, /path:\s*"\.\/blocks\/steplist"/)
   assert.match(source, /command:\s*"npx vite build"/)
 
   for (const key of ["title", "detail", "status", "position", "date", "kind"]) {
@@ -132,7 +132,7 @@ test("appends new steps after the highest position", () => {
 test("the block uses no form elements", async () => {
   // The custom-block sandbox disallows forms: a submit button's event never
   // fires, so Save would silently do nothing. Guard against reintroducing one.
-  const dir = new URL("../blocks/stepline/src/", import.meta.url)
+  const dir = new URL("../blocks/steplist/src/", import.meta.url)
   const { readdir } = await import("node:fs/promises")
 
   for (const file of await readdir(dir)) {
@@ -185,8 +185,8 @@ test("titles take the status colour the workspace configured", async () => {
 })
 
 test("colours come from Notion's own palette, in both themes", async () => {
-  const { STATUS_TONES } = await import("../blocks/stepline/src/steps.ts")
-  const css = await readFile(new URL("../blocks/stepline/src/index.css", import.meta.url), "utf8")
+  const { STATUS_TONES } = await import("../blocks/steplist/src/steps.ts")
+  const css = await readFile(new URL("../blocks/steplist/src/index.css", import.meta.url), "utf8")
   const light = css.slice(css.indexOf(":root {"), css.indexOf("}", css.indexOf(":root {")))
   const dark = css.slice(css.indexOf('[data-display-mode="dark"] {'), css.indexOf("}", css.indexOf('[data-display-mode="dark"] {')))
 
@@ -256,8 +256,8 @@ test("lists status options in Notion's groups, and colours each pill", () => {
 })
 
 test("a completed bullet is filled with its title's colour", async () => {
-  const { STATUS_TONES } = await import("../blocks/stepline/src/steps.ts")
-  const css = await readFile(new URL("../blocks/stepline/src/index.css", import.meta.url), "utf8")
+  const { STATUS_TONES } = await import("../blocks/steplist/src/steps.ts")
+  const css = await readFile(new URL("../blocks/steplist/src/index.css", import.meta.url), "utf8")
   for (const tone of STATUS_TONES) {
     assert.ok(css.includes(`.ink-${tone} { --step-ink: var(--n-${tone}-text);`), `${tone} bullet ink`)
   }
@@ -265,14 +265,14 @@ test("a completed bullet is filled with its title's colour", async () => {
   // No hue: the original near-black fill.
   assert.match(css, /--step-ink: var\(--bg-interactive-strong\)/)
 
-  const step = await readFile(new URL("../blocks/stepline/src/Step.tsx", import.meta.url), "utf8")
+  const step = await readFile(new URL("../blocks/steplist/src/Step.tsx", import.meta.url), "utf8")
   assert.match(step, /ink-\$\{step\.tone\}/)
   assert.match(step, /d="M2\.5 6\.2 5 8\.7l4\.5-5"/, "the stroked tick, not the check-circle")
 })
 
 test("disabled controls stay legible", async () => {
   const css = await readFile(
-    new URL("../blocks/stepline/src/index.css", import.meta.url),
+    new URL("../blocks/steplist/src/index.css", import.meta.url),
     "utf8"
   )
   const rules = css.replace(/\/\*[\s\S]*?\*\//g, "")
@@ -297,12 +297,12 @@ test("disabled controls stay legible", async () => {
 // shown (on steps with something to reveal), and the title says so on hover.
 test("chevrons are always visible and the title explains them", async () => {
   const css = (
-    await readFile(new URL("../blocks/stepline/src/index.css", import.meta.url), "utf8")
+    await readFile(new URL("../blocks/steplist/src/index.css", import.meta.url), "utf8")
   ).replace(/\/\*[\s\S]*?\*\//g, "")
   const chevron = css.slice(css.indexOf(".chevron {"), css.indexOf("}", css.indexOf(".chevron {")))
   assert.doesNotMatch(chevron, /opacity:\s*0/, "the chevron is hidden at rest")
   assert.doesNotMatch(css, /:hover \.chevron/, "the chevron only appears on hover")
 
-  const step = await readFile(new URL("../blocks/stepline/src/Step.tsx", import.meta.url), "utf8")
+  const step = await readFile(new URL("../blocks/steplist/src/Step.tsx", import.meta.url), "utf8")
   assert.match(step, /"Click to reveal"/)
 })
