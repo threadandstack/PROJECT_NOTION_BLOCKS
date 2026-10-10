@@ -62,7 +62,7 @@ export function Step({
   const title = step.title || "Untitled step"
 
   return (
-    <li className={`step step-${step.phase} ${expanded ? "is-expanded" : ""}`}>
+    <li className={`step step-${step.phase} ${step.tone ? `ink-${step.tone}` : ""} ${expanded ? "is-expanded" : ""}`}>
       <div className="rail">
         {/*
           The bullet doubles as the status control, like the pill beside the
@@ -77,11 +77,11 @@ export function Step({
             disabled={busy}
             onClick={(event) => onOpenStatus(event.currentTarget)}
           >
-            {step.phase === "complete" ? <DoneMark /> : index}
+            {step.phase === "complete" ? <CheckMark /> : index}
           </button>
         ) : (
           <span className="bullet" aria-hidden="true">
-            {step.phase === "complete" ? <DoneMark /> : index}
+            {step.phase === "complete" ? <CheckMark /> : index}
           </span>
         )}
         {isLast ? null : <span className="connector" aria-hidden="true" />}
@@ -348,15 +348,16 @@ function Chevron({ expanded }: { expanded: boolean }) {
   )
 }
 
-/** The brand check-circle: a filled circle with the tick cut out (fill-rule evenodd). */
-function DoneMark() {
+function CheckMark() {
   return (
-    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+    <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false">
       <path
-        fill="currentColor"
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14m3.844-8.791a.75.75 0 0 0-1.188-.918l-3.7 4.79-1.649-1.833a.75.75 0 1 0-1.114 1.004l2.25 2.5a.75.75 0 0 0 1.15-.043l4.25-5.5Z"
+        d="M2.5 6.2 5 8.7l4.5-5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   )

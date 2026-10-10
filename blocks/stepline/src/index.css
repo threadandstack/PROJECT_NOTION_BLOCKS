@@ -187,24 +187,33 @@
 }
 
 /*
- * A completed step's bullet is the brand check-circle (a filled circle with
- * the tick cut out), drawn in its own grey, with no outline or fill around it.
- * The rail between completed steps takes the same grey.
+ * A completed step's bullet is a solid circle with a white tick, filled with
+ * the same Notion colour as the step's title. A status with no hue (default or
+ * grey) keeps the original near-black fill, as its title stays black. The rail
+ * between completed steps takes the bullet's colour.
  */
-.step-complete .bullet {
-  --done-grey: #858585;
-  border-color: transparent;
-  background: transparent;
-  color: var(--done-grey);
+.step {
+  --step-ink: var(--bg-interactive-strong);
+  --step-ink-mark: var(--content-on-interactive-strong);
 }
 
-.step-complete .bullet svg {
-  width: 100%;
-  height: 100%;
+.ink-brown { --step-ink: var(--n-brown-text); --step-ink-mark: #fff; }
+.ink-orange { --step-ink: var(--n-orange-text); --step-ink-mark: #fff; }
+.ink-yellow { --step-ink: var(--n-yellow-text); --step-ink-mark: #fff; }
+.ink-green { --step-ink: var(--n-green-text); --step-ink-mark: #fff; }
+.ink-blue { --step-ink: var(--n-blue-text); --step-ink-mark: #fff; }
+.ink-purple { --step-ink: var(--n-purple-text); --step-ink-mark: #fff; }
+.ink-pink { --step-ink: var(--n-pink-text); --step-ink-mark: #fff; }
+.ink-red { --step-ink: var(--n-red-text); --step-ink-mark: #fff; }
+
+.step-complete .bullet {
+  background: var(--step-ink);
+  border-color: var(--step-ink);
+  color: var(--step-ink-mark);
 }
 
 .step-complete .connector {
-  background: #858585;
+  background: var(--step-ink);
 }
 
 .step-active .bullet {

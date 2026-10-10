@@ -4,6 +4,7 @@ import type {
   NotionPropertyOption,
   NotionPropertySchema,
 } from "@notionhq/custom-blocks"
+import { fromStored } from "./richText.ts"
 
 /**
  * How a step's status reads visually on the rail. Derived from the bound Status
@@ -54,9 +55,18 @@ export type PillTone = StatusTone | "gray"
  */
 export const TITLE_ROW_TYPE = "Title"
 
-/** Whether a row is the stepline's heading row. */
+/**
+ * Whether a row is the steplist's heading row: its Row type is Title, or its
+ * Detail holds the heading's stored formatting, which only the block writes and
+ * only on the heading row.
+ *
+ * The second test matters. Notion's bridge silently ignores a select value that
+ * isn't already an option, so in a database whose Row type has no "Title"
+ * option yet, the heading row the block creates arrives with Row type empty.
+ */
 export function isTitleRow(row: NotionDataSourcePage): boolean {
-  return asText(row.propertiesByKey.kind).trim().toLowerCase() === TITLE_ROW_TYPE.toLowerCase()
+  if (asText(row.propertiesByKey.kind).trim().toLowerCase() === TITLE_ROW_TYPE.toLowerCase()) return true
+  return fromStored(row.propertiesByKey.detail) !== null
 }
 
 /** The stepline's heading row: the first one marked Title, by ID so every viewer agrees. */

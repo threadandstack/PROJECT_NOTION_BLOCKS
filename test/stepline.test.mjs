@@ -225,6 +225,15 @@ test("the heading row is not a step", () => {
   assert.equal(findTitleRow(rows.filter((r) => r.id !== "h")), undefined)
   // Matching is forgiving of case, since the value may be typed in the database.
   assert.equal(findTitleRow([row("x", { kind: "title" })])?.id, "x")
+
+  // The bridge drops a select value that isn't an option yet, so a heading row
+  // can arrive with Row type empty. Its stored formatting still marks it.
+  const unmarked = [
+    row("s1", { title: "First", position: 1, detail: "Plain words about the step." }),
+    row("h", { title: "Plan", position: 0, detail: '{"v":1,"r":[{"t":"Plan"}]}' }),
+  ]
+  assert.deepEqual(toSteps(unmarked, statusSchema).map((step) => step.title), ["First"])
+  assert.equal(findTitleRow(unmarked)?.id, "h")
 })
 
 test("lists status options in Notion's groups, and colours each pill", () => {
@@ -246,12 +255,19 @@ test("lists status options in Notion's groups, and colours each pill", () => {
   assert.equal(pillForOption(undefined), "gray")
 })
 
-test("a completed step's bullet is the brand check-circle", async () => {
-  const step = await readFile(new URL("../blocks/stepline/src/Step.tsx", import.meta.url), "utf8")
-  assert.match(step, /M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14m3\.844-8\.791/)
-  assert.match(step, /fillRule="evenodd"/)
+test("a completed bullet is filled with its title's colour", async () => {
+  const { STATUS_TONES } = await import("../blocks/stepline/src/steps.ts")
   const css = await readFile(new URL("../blocks/stepline/src/index.css", import.meta.url), "utf8")
-  assert.match(css, /--done-grey: #858585/)
+  for (const tone of STATUS_TONES) {
+    assert.ok(css.includes(`.ink-${tone} { --step-ink: var(--n-${tone}-text);`), `${tone} bullet ink`)
+  }
+  assert.match(css, /\.step-complete \.bullet \{\s*background: var\(--step-ink\)/)
+  // No hue: the original near-black fill.
+  assert.match(css, /--step-ink: var\(--bg-interactive-strong\)/)
+
+  const step = await readFile(new URL("../blocks/stepline/src/Step.tsx", import.meta.url), "utf8")
+  assert.match(step, /ink-\$\{step\.tone\}/)
+  assert.match(step, /d="M2\.5 6\.2 5 8\.7l4\.5-5"/, "the stroked tick, not the check-circle")
 })
 
 test("disabled controls stay legible", async () => {
