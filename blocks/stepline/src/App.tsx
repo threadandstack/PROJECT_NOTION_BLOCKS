@@ -1,8 +1,26 @@
-import { pages, type NotionPagePropertyInputMap } from "@notionhq/custom-blocks"
+import {
+  pages,
+  type NotionPageId,
+  type NotionPagePropertyInputMap,
+  type NotionPagePropertyWriteMap,
+  type NotionPropertyOption,
+} from "@notionhq/custom-blocks"
 import { useDataSource } from "@notionhq/custom-blocks/react"
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { InlineText } from "./InlineText"
+import { fromPlainText, fromStored, plainText, sameSegments, toNotionRichText, toStored, type Segment } from "./richText"
+import { StatusMenu } from "./StatusMenu"
 import { Step, type StepEdit } from "./Step"
-import { nextPosition, statusOptions, toSteps, type Step as StepModel } from "./steps"
+import {
+  findTitleRow,
+  nextPosition,
+  statusGroups,
+  statusOptions,
+  TITLE_ROW_TYPE,
+  toSteps,
+  type Step as StepModel,
+} from "./steps"
+import { usePopoverSpace } from "./usePopoverSpace"
 
 const DATA_SOURCE_KEY = "steps"
 const PAGE_SIZE = 25
@@ -30,14 +48,22 @@ export function App() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [writeError, setWriteError] = useState<string | null>(null)
+  const [root, setRoot] = useState<HTMLElement | null>(null)
+  // The status menu: which step it is for and where it opens.
+  const [statusMenu, setStatusMenu] = useState<{ stepId: string; anchor: { left: number; top: number } } | null>(
+    null
+  )
+  const [menuNode, setMenuNode] = useState<HTMLDivElement | null>(null)
+  usePopoverSpace(root, statusMenu ? menuNode : null)
 
   const query = useDataSource(DATA_SOURCE_KEY, { limit })
-  const { items, propertySchemasByKey, isLoading, hasMore, error } = query
+  const { items, propertySchemasByKey, propertyIdsByKey, isLoading, hasMore, error } = query
 
   const options = useMemo(
     () => statusOptions(propertySchemasByKey.status),
     [propertySchemasByKey.status]
   )
+  const groups = useMemo(() => statusGroups(propertySchemasByKey.status), [propertySchemasByKey.status])
   const steps = useMemo(
     () => toSteps(items, propertySchemasByKey.status),
     [items, propertySchemasByKey.status]
@@ -199,10 +225,85 @@ export function App() {
     })
   }
 
+  // ── The heading ──────────────────────────────────────────────────────────
+  //
+  // The H3 is a row in the Steps database whose Row type is "Title": its Title
+  // holds the plain words and its Detail the formatted ones (see richText.ts).
+  // Rows are created the first time someone writes a heading.
+  const titleRow = useMemo(() => findTitleRow(items), [items])
+  const savedTitle = useMemo(() => {
+    if (!titleRow) return []
+    const words = typeof titleRow.propertiesByKey.title === "string" ? titleRow.propertiesByKey.title : ""
+    const stored = fromStored(titleRow.propertiesByKey.detail)
+    return stored && plainText(stored) === words ? stored : fromPlainText(words)
+  }, [titleRow])
+  const [pendingTitle, setPendingTitle] = useState<Segment[] | null>(null)
+  useEffect(() => {
+    setPendingTitle((pending) => (pending && sameSegments(pending, savedTitle) ? null : pending))
+  }, [savedTitle])
+
+  // Heading writes run one at a time, and a second one made before the new row
+  // shows up in the query updates that row instead of creating another.
+  const titleQueue = useRef<Promise<unknown>>(Promise.resolve())
+  const createdTitleId = useRef<string | null>(null)
+  const latestTitleRow = useRef(titleRow)
+  latestTitleRow.current = titleRow
+
+  function saveTitle(segments: Segment[]) {
+    setPendingTitle(segments)
+    titleQueue.current = titleQueue.current.then(() =>
+      write("title", async () => {
+        const properties: NotionPagePropertyInputMap = {
+          title: { type: "title", title: toNotionRichText(segments) },
+          detail: { type: "rich_text", rich_text: toNotionRichText(fromPlainText(toStored(segments))) },
+        }
+        const row = latestTitleRow.current
+        if (row) return row.update({ properties })
+        if (createdTitleId.current) {
+          return pages.update({
+            pageId: createdTitleId.current as NotionPageId,
+            properties: byPropertyId(properties, propertyIdsByKey),
+          })
+        }
+        const created = await pages.create({
+          parent: { type: "data_source_key", key: DATA_SOURCE_KEY },
+          properties: {
+            ...properties,
+            kind: { type: "select", select: { name: TITLE_ROW_TYPE } },
+            position: { type: "number", number: 0 },
+          },
+        })
+        if (created.status === "success") createdTitleId.current = created.page.id
+        return created
+      })
+    )
+  }
+
+  // ── Status ───────────────────────────────────────────────────────────────
+
+  const closeStatusMenu = useCallback(() => setStatusMenu(null), [])
+
+  function openStatusMenu(step: StepModel, element: HTMLElement) {
+    if (!root) return
+    if (statusMenu?.stepId === step.id) {
+      setStatusMenu(null)
+      return
+    }
+    const box = element.getBoundingClientRect()
+    const origin = root.getBoundingClientRect()
+    setStatusMenu({ stepId: step.id, anchor: { left: box.left - origin.left, top: box.bottom - origin.top + 4 } })
+  }
+
+  function setStatus(step: StepModel, option: NotionPropertyOption) {
+    void write(step.id, () => step.row.update({ properties: { status: { type: "status", status: { id: option.id } } } }))
+  }
+
+  const menuStep = statusMenu ? steps.find((step) => step.id === statusMenu.stepId) : undefined
+
   if (error) {
     return (
       <div className="notice notice-error" role="alert">
-        Couldn't load the stepline: {error.message}
+        Couldn't load the steplist: {error.message}
       </div>
     )
   }
@@ -210,7 +311,7 @@ export function App() {
   if (isLoading && steps.length === 0) {
     return (
       <div className="notice" aria-busy="true">
-        Loading stepline…
+        Loading steplist…
       </div>
     )
   }
@@ -221,16 +322,28 @@ export function App() {
      * `focus-within` matters as much as hover: without it the control would be
      * unreachable by keyboard.
      */
-    <main className={`stepline-root ${editable ? "is-editable" : ""}`}>
+    <main ref={setRoot} className={`stepline-root ${editable ? "is-editable" : ""}`}>
       <div className="stepline-toolbar">
         <button
           type="button"
           className={editable ? "primary-button" : "ghost-button"}
           onClick={toggleEditable}
         >
-          {editable ? "Done" : "Edit stepline"}
+          {editable ? "Done" : "Edit steplist"}
         </button>
       </div>
+
+      {propertyIdsByKey.kind !== undefined ? (
+        <div className="plan-title" role="heading" aria-level={3}>
+          <InlineText
+            segments={pendingTitle ?? savedTitle}
+            placeholder="Untitled plan"
+            container={root}
+            onEditingChange={() => setStatusMenu(null)}
+            onCommit={saveTitle}
+          />
+        </div>
+      ) : null}
 
       {writeError ? (
         <div className="notice notice-error" role="alert">
@@ -242,7 +355,7 @@ export function App() {
         <p className="empty">
           {editable
             ? "No steps yet. Add the first one below."
-            : "No steps yet. Choose “Edit stepline” to add one."}
+            : "No steps yet. Choose “Edit steplist” to add one."}
         </p>
       ) : (
         <ol className="stepline">
@@ -260,6 +373,7 @@ export function App() {
               editing={editingId === step.id}
               busy={busyId === step.id}
               onToggle={() => toggle(step.id)}
+              onOpenStatus={options.length > 0 ? (element) => openStatusMenu(step, element) : undefined}
               onStartEditing={() => setEditingId(step.id)}
               onStopEditing={() => setEditingId(null)}
               onSave={(edit) => save(step, edit)}
@@ -269,6 +383,17 @@ export function App() {
           ))}
         </ol>
       )}
+
+      {statusMenu && menuStep ? (
+        <StatusMenu
+          groups={groups}
+          value={menuStep.status}
+          anchor={statusMenu.anchor}
+          menuRef={setMenuNode}
+          onPick={(option) => setStatus(menuStep, option)}
+          onClose={closeStatusMenu}
+        />
+      ) : null}
 
       <div className="stepline-footer">
         {editable ? (
@@ -295,10 +420,23 @@ export function App() {
 
         {hasMore && limit >= MAX_ROWS ? (
           <span className="field-note">
-            Showing the first {MAX_ROWS} steps — this stepline has more.
+            Showing the first {MAX_ROWS} steps — this steplist has more.
           </span>
         ) : null}
       </div>
     </main>
   )
+}
+
+/** `pages.update` takes raw property IDs, each repeated in its value. */
+function byPropertyId(
+  properties: NotionPagePropertyInputMap,
+  ids: Record<string, string | undefined>
+): NotionPagePropertyWriteMap {
+  const written: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(properties)) {
+    const id = ids[key]
+    if (id) written[id] = { ...value, id }
+  }
+  return written as NotionPagePropertyWriteMap
 }

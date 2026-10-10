@@ -3,9 +3,9 @@ import { Worker } from "@notionhq/workers"
 const worker = new Worker()
 export default worker
 
-// ─── Stepline (vertical) ────────────────────────────────────────────────────
+// ─── Steplist ───────────────────────────────────────────────────────────────
 //
-// A numbered, connected stepline rendered inline in a Notion page. Each step is
+// A numbered, connected steplist rendered inline in a Notion page. Each step is
 // a row in a bound data source, so the content lives in Notion and stays
 // editable from the database as well as from the block itself.
 //
@@ -20,11 +20,11 @@ export default worker
 // ones already on pages; only the display name and slash command are the
 // block's public name.
 worker.customBlock("timeline", {
-  name: "Stepline (vertical)",
+  name: "Steplist",
   description:
-    "A vertical, numbered stepline. Each step expands to reveal its detail, and carries a status.",
+    "A numbered list of steps under a heading. Each step expands to reveal its detail, and carries a status you can change in place.",
   icon: { type: "emoji", emoji: "🧭" },
-  slashCommand: "stepline",
+  slashCommand: "steplist",
   path: "./blocks/stepline",
   command: "npx vite build",
   output: "dist",
@@ -61,6 +61,14 @@ worker.customBlock("timeline", {
           name: "Date",
           description: "Optional date shown beneath the step's title.",
           type: "date",
+        },
+        // The steplist's heading lives in the same database as its steps: a row
+        // whose Row type is "Title" is shown as the H3 and left out of the steps.
+        kind: {
+          name: "Row type",
+          description:
+            "Leave empty for a step. Set by the block to \"Title\" on the row that holds the steplist's heading (its Detail keeps the heading's formatting).",
+          type: "select",
         },
       },
     },

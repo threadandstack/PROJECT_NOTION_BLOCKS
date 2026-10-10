@@ -54,7 +54,7 @@ From `blocks/tilting-callout/src/` into `blocks/<your-block>/src/`:
 | `ColourGrid.tsx` | Notion's text and background colour swatches | Nothing |
 | `usePopoverSpace.ts` | Grows the iframe so a menu is never clipped | Nothing |
 | `callout.ts`, **"Rich text", "Editing" and "Storage" sections** | The run model (`Segment`), pure edit functions (`replaceRange`, `toggleMark`, `applyStyle`, `clearFormatting`, `hasMark`, `sharedValue`), `toNotionRichText`, `toStored` / `fromStored` | Move into your block's own model file (e.g. `richText.ts`). Also bring `HUES`, `colourLabel` and `CalloutColour` (rename to `NotionColour`) from the top of the file |
-| `index.css`, **"Rich text" and "Menus" sections, plus the `c-*` colour rules** | Mark styles, the menu card, swatches, and light/dark colours | Copy as is. Keep both the light and the dark rule for every colour |
+| `index.css`, **"Notion's palette", "Colours", "Rich text" and "Menus" sections** | Notion's measured in-app colours (`--n-<hue>-text`, `-bg`, `-pill-text`, `-pill-bg`, light and dark), the `c-*` colour rules built on them, mark styles, the menu card and swatches | Copy as is. Never use the design system's raw palette (`--green-110` etc.) for text: it's darker than Notion's. The palette was read from the Notion app's stylesheet on 2026-10-09 (`--c-<hue>TexSec`, `BacSec`, `TexPri`, `--ca-<hue>BacTerTra`); re-measure rather than guess if it ever looks off |
 
 From `App.tsx`, copy the **save pattern** (described below), not the file.
 `IconMenu.tsx` is specific to the callout; copy it only if your block has an

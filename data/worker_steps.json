@@ -22,6 +22,10 @@
     "date": {
       "name": "Date",
       "type": "date"
+    },
+    "kind": {
+      "name": "Row type",
+      "type": "select"
     }
   },
   "rows": []

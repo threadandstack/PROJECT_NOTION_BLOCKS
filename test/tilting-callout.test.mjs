@@ -288,16 +288,20 @@ test("the block uses no form elements", async () => {
   }
 })
 
-test("every colour has a light and a dark declaration, and disabled controls dim", async () => {
+test("every colour comes from Notion's palette, with light and dark values", async () => {
   const css = (
     await readFile(new URL("../blocks/tilting-callout/src/index.css", import.meta.url), "utf8")
   ).replace(/\/\*[\s\S]*?\*\//g, "")
+  const dark = css.slice(css.indexOf('[data-display-mode="dark"] {'))
 
   for (const hue of ["gray", "brown", "orange", "yellow", "green", "blue", "purple", "pink", "red"]) {
-    for (const token of [hue, `${hue}_background`]) {
-      const rule = new RegExp(`\\.callout-${token}\\b`, "g")
-      assert.equal(css.match(rule)?.length, 2, `callout-${token} needs a light and a dark rule`)
-    }
+    assert.match(css, new RegExp(`\\.callout-${hue} \\{ color: var\\(--n-${hue}-text\\)`), `callout-${hue}`)
+    assert.match(
+      css,
+      new RegExp(`\\.callout-${hue}_background \\.tilt-body \\{ background: var\\(--n-${hue}-bg\\)`),
+      `callout-${hue}_background`
+    )
+    assert.match(dark, new RegExp(`--n-${hue}-bg:`), `${hue} fill has a dark value`)
   }
 
   assert.doesNotMatch(css, /color:\s*var\(--content-disabled\)/)

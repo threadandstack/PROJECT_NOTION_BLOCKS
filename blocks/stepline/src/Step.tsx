@@ -23,6 +23,8 @@ type StepProps = {
   editing: boolean
   busy: boolean
   onToggle: () => void
+  /** Open the status menu below the element clicked; absent when there are no statuses to pick. */
+  onOpenStatus?: (anchor: HTMLElement) => void
   onStartEditing: () => void
   onStopEditing: () => void
   onSave: (edit: StepEdit) => void
@@ -42,6 +44,7 @@ export function Step({
   editing,
   busy,
   onToggle,
+  onOpenStatus,
   onStartEditing,
   onStopEditing,
   onSave,
@@ -60,32 +63,74 @@ export function Step({
 
   return (
     <li className={`step step-${step.phase} ${expanded ? "is-expanded" : ""}`}>
-      <div className="rail" aria-hidden="true">
-        <span className="bullet">
-          {step.phase === "complete" ? <CheckMark /> : index}
-        </span>
-        {isLast ? null : <span className="connector" />}
+      <div className="rail">
+        {/*
+          The bullet doubles as the status control, like the pill beside the
+          title: clicking either opens the status menu.
+        */}
+        {onOpenStatus ? (
+          <button
+            type="button"
+            className="bullet"
+            aria-label={`Step ${index} status: ${step.status ?? "none"}. Change status`}
+            aria-haspopup="menu"
+            disabled={busy}
+            onClick={(event) => onOpenStatus(event.currentTarget)}
+          >
+            {step.phase === "complete" ? <DoneMark /> : index}
+          </button>
+        ) : (
+          <span className="bullet" aria-hidden="true">
+            {step.phase === "complete" ? <DoneMark /> : index}
+          </span>
+        )}
+        {isLast ? null : <span className="connector" aria-hidden="true" />}
       </div>
 
       <div className="step-body">
-        <button
-          type="button"
+        {/*
+          The row toggles the step open, but holds the status pill, which is a
+          button of its own, so it is a div with button behaviour rather than a
+          <button> (buttons cannot nest).
+        */}
+        <div
+          role="button"
+          tabIndex={0}
           className="step-header"
           aria-expanded={expanded}
           aria-controls={panelId}
           onClick={onToggle}
+          onKeyDown={(event) => {
+            if (event.target !== event.currentTarget) return
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault()
+              onToggle()
+            }
+          }}
         >
           <span className={`step-title ${step.tone ? `tone-${step.tone}` : ""}`}>
             {title}
           </span>
-          {step.status ? (
-            <span className={`status-tag ${step.tone ? `tone-${step.tone}` : ""}`}>
+          {step.status && onOpenStatus ? (
+            <button
+              type="button"
+              className={`status-tag status-button pill-${step.pill}`}
+              aria-haspopup="menu"
+              aria-label={`Status: ${step.status}. Change status`}
+              disabled={busy}
+              onClick={(event) => {
+                event.stopPropagation()
+                onOpenStatus(event.currentTarget)
+              }}
+            >
               {step.status}
-            </span>
+            </button>
+          ) : step.status ? (
+            <span className={`status-tag pill-${step.pill}`}>{step.status}</span>
           ) : null}
           {date ? <span className="step-date">{date}</span> : null}
           <Chevron expanded={expanded} />
-        </button>
+        </div>
 
         <div className="step-panel" id={panelId} hidden={!expanded}>
           {editing ? (
@@ -303,16 +348,15 @@ function Chevron({ expanded }: { expanded: boolean }) {
   )
 }
 
-function CheckMark() {
+/** The brand check-circle: a filled circle with the tick cut out (fill-rule evenodd). */
+function DoneMark() {
   return (
-    <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false">
+    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
       <path
-        d="M2.5 6.2 5 8.7l4.5-5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        fill="currentColor"
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14m3.844-8.791a.75.75 0 0 0-1.188-.918l-3.7 4.79-1.649-1.833a.75.75 0 1 0-1.114 1.004l2.25 2.5a.75.75 0 0 0 1.15-.043l4.25-5.5Z"
       />
     </svg>
   )

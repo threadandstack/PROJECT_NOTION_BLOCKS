@@ -1,7 +1,14 @@
 import assert from "node:assert/strict"
 import { readFile } from "node:fs/promises"
 import test from "node:test"
-import { formatDate, nextPosition, toSteps } from "../blocks/stepline/src/steps.ts"
+import {
+  findTitleRow,
+  formatDate,
+  nextPosition,
+  pillForOption,
+  statusGroups,
+  toSteps,
+} from "../blocks/stepline/src/steps.ts"
 
 const workerUrl = new URL("../src/index.ts", import.meta.url)
 
@@ -33,12 +40,12 @@ test("declares the stepline block and the properties it binds", async () => {
   // bind to, so renaming it would orphan the ones already on pages. Only the
   // display name and slash command are the block's public name.
   assert.match(source, /worker\.customBlock\("timeline"/)
-  assert.match(source, /name:\s*"Stepline \(vertical\)"/)
-  assert.match(source, /slashCommand:\s*"stepline"/)
+  assert.match(source, /name:\s*"Steplist"/)
+  assert.match(source, /slashCommand:\s*"steplist"/)
   assert.match(source, /path:\s*"\.\/blocks\/stepline"/)
   assert.match(source, /command:\s*"npx vite build"/)
 
-  for (const key of ["title", "detail", "status", "position", "date"]) {
+  for (const key of ["title", "detail", "status", "position", "date", "kind"]) {
     assert.match(source, new RegExp(`${key}:\\s*\\{`), `missing ${key} property`)
   }
 })
@@ -177,37 +184,74 @@ test("titles take the status colour the workspace configured", async () => {
   )
 })
 
-test("every status tone has both a light and a dark declaration", async () => {
+test("colours come from Notion's own palette, in both themes", async () => {
   const { STATUS_TONES } = await import("../blocks/stepline/src/steps.ts")
-  const css = await readFile(
-    new URL("../blocks/stepline/src/index.css", import.meta.url),
-    "utf8"
-  )
+  const css = await readFile(new URL("../blocks/stepline/src/index.css", import.meta.url), "utf8")
+  const light = css.slice(css.indexOf(":root {"), css.indexOf("}", css.indexOf(":root {")))
+  const dark = css.slice(css.indexOf('[data-display-mode="dark"] {'), css.indexOf("}", css.indexOf('[data-display-mode="dark"] {')))
 
-  // The raw palette does not flip between light and dark, so a tone declared
-  // only once would be unreadable in one of the two themes.
   for (const tone of STATUS_TONES) {
-    assert.ok(css.includes(`.tone-${tone} { color:`), `${tone} has no colour`)
-    assert.ok(
-      css.includes(`[data-display-mode="dark"] .tone-${tone} { color:`),
-      `${tone} has no dark-mode colour`
-    )
-    assert.ok(
-      css.includes(`.status-tag.tone-${tone} { background:`),
-      `${tone} has no label tint`
-    )
-    assert.ok(
-      css.includes(`[data-display-mode="dark"] .status-tag.tone-${tone} { background:`),
-      `${tone} has no dark-mode label tint`
-    )
+    assert.ok(css.includes(`.tone-${tone} { color: var(--n-${tone}-text); }`), `${tone} title`)
+    assert.ok(css.includes(`.pill-${tone} { color: var(--n-${tone}-pill-text); background: var(--n-${tone}-pill-bg); }`), `${tone} pill`)
+    for (const name of ["text", "bg", "pill-text", "pill-bg"]) {
+      assert.ok(light.includes(`--n-${tone}-${name}:`), `${tone} ${name} has a light value`)
+    }
+    for (const name of ["bg", "pill-text", "pill-bg"]) {
+      assert.ok(dark.includes(`--n-${tone}-${name}:`), `${tone} ${name} has a dark value`)
+    }
   }
+  assert.ok(css.includes(".pill-gray {"), "default and grey options get Notion's grey pill")
+
+  // Values read from the Notion app's stylesheet. If these change, re-measure
+  // rather than guess (see the palette comment in index.css).
+  assert.ok(light.includes("--n-green-text: #50946e;"))
+  assert.ok(light.includes("--n-blue-text: #387dc9;"))
+  assert.ok(light.includes("--n-yellow-text: #cb9434;"))
+  assert.ok(light.includes("--n-pink-text: #c14c8a;"))
+  assert.ok(light.includes("--n-green-pill-bg: rgba(0,96,38,.157);"))
 
   // Titles must not fall back to grey anywhere.
-  assert.doesNotMatch(
-    css,
-    /\.step-complete \.step-title/,
-    "completed titles are being greyed out"
+  assert.doesNotMatch(css, /\.step-complete \.step-title/, "completed titles are being greyed out")
+})
+
+test("the heading row is not a step", () => {
+  const rows = [
+    row("s2", { title: "Second", position: 2 }),
+    row("h", { title: "Launch plan", kind: "Title", position: 0 }),
+    row("s1", { title: "First", position: 1, kind: "" }),
+  ]
+  assert.deepEqual(toSteps(rows, statusSchema).map((step) => step.title), ["First", "Second"])
+  assert.equal(findTitleRow(rows)?.id, "h")
+  assert.equal(findTitleRow(rows.filter((r) => r.id !== "h")), undefined)
+  // Matching is forgiving of case, since the value may be typed in the database.
+  assert.equal(findTitleRow([row("x", { kind: "title" })])?.id, "x")
+})
+
+test("lists status options in Notion's groups, and colours each pill", () => {
+  const groups = statusGroups(statusSchema)
+  assert.deepEqual(
+    groups.map((group) => [group.name, group.options.map((option) => option.name)]),
+    [
+      ["To-do", ["Not started"]],
+      ["In progress", ["In flight"]],
+      ["Complete", ["Shipped"]],
+    ]
   )
+  const ungrouped = statusGroups({ ...statusSchema, groups: [] })
+  assert.deepEqual(ungrouped.map((group) => group.name), [""])
+
+  assert.equal(pillForOption("green"), "green")
+  assert.equal(pillForOption("pink_background"), "pink")
+  assert.equal(pillForOption("default"), "gray")
+  assert.equal(pillForOption(undefined), "gray")
+})
+
+test("a completed step's bullet is the brand check-circle", async () => {
+  const step = await readFile(new URL("../blocks/stepline/src/Step.tsx", import.meta.url), "utf8")
+  assert.match(step, /M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14m3\.844-8\.791/)
+  assert.match(step, /fillRule="evenodd"/)
+  const css = await readFile(new URL("../blocks/stepline/src/index.css", import.meta.url), "utf8")
+  assert.match(css, /--done-grey: #858585/)
 })
 
 test("disabled controls stay legible", async () => {

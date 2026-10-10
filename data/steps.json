@@ -4,20 +4,48 @@
   "name": "Steps (sample)",
   "icon": "🧭",
   "schema": {
-    "title": { "name": "Title", "type": "title" },
-    "detail": { "name": "Detail", "type": "rich_text" },
-    "status": { "name": "Status", "type": "status" },
-    "position": { "name": "Position", "type": "number" },
-    "date": { "name": "Date", "type": "date" }
+    "title": {
+      "name": "Title",
+      "type": "title"
+    },
+    "detail": {
+      "name": "Detail",
+      "type": "rich_text"
+    },
+    "status": {
+      "name": "Status",
+      "type": "status"
+    },
+    "position": {
+      "name": "Position",
+      "type": "number"
+    },
+    "date": {
+      "name": "Date",
+      "type": "date"
+    },
+    "kind": {
+      "name": "Row type",
+      "type": "select"
+    }
   },
   "rows": [
+    {
+      "id": "steps-title",
+      "title": "Workspace rollout",
+      "kind": "Title",
+      "position": 0
+    },
     {
       "id": "steps-1",
       "title": "Discovery",
       "detail": "Two sessions to map how the team actually works, not how the org chart says it does.",
       "status": "Done",
       "position": 1,
-      "date": { "type": "date", "start_date": "2026-01-12" }
+      "date": {
+        "type": "date",
+        "start_date": "2026-01-12"
+      }
     },
     {
       "id": "steps-2",
@@ -25,7 +53,10 @@
       "detail": "Agree the teamspace spine and the source databases everything else reads from.",
       "status": "Done",
       "position": 2,
-      "date": { "type": "date", "start_date": "2026-02-02" }
+      "date": {
+        "type": "date",
+        "start_date": "2026-02-02"
+      }
     },
     {
       "id": "steps-3",
@@ -33,7 +64,10 @@
       "detail": "Provision the workspace as code, then tailor the surfaces each team lands on.",
       "status": "In progress",
       "position": 3,
-      "date": { "type": "date", "start_date": "2026-03-09" }
+      "date": {
+        "type": "date",
+        "start_date": "2026-03-09"
+      }
     },
     {
       "id": "steps-4",
